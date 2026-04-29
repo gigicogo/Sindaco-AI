@@ -25,6 +25,12 @@ async function createServer() {
 
   app.use(express.json());
 
+  // Logging middleware
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+  });
+
   // API for chat with context from GitHub
   app.post("/api/chat", async (req, res) => {
     const { message, context } = req.body;
@@ -49,7 +55,8 @@ ${message}`;
         contents: [{ role: "user", parts: [{ text: prompt }] }]
       });
       const response = await result.response;
-      res.json({ text: response.text });
+      const text = response.text();
+      res.json({ text });
     } catch (error) {
       console.error("AI Error:", error);
       res.status(500).json({ error: "Errore durante la generazione della risposta AI" });
@@ -129,13 +136,19 @@ ${message}`;
       
       const contents = await Promise.all(mdFiles.map(async (file: any) => {
         try {
-          const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${file.path}`;
-          const rawRes = await fetch(rawUrl);
-          if (!rawRes.ok) return "";
-          const text = await rawRes.text();
+          // Use GitHub API to fetch content instead of raw URL for better private repo support
+          const fileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${file.path}`, {
+            headers: {
+              "Accept": "application/vnd.github.v3.raw",
+              "User-Agent": "Venezia-AI-App",
+              ...(process.env.GITHUB_TOKEN ? { "Authorization": `token ${process.env.GITHUB_TOKEN}` } : {}),
+            }
+          });
+          if (!fileRes.ok) return "";
+          const text = await fileRes.text();
           return `--- FILE: ${file.path} ---\n${text}\n`;
         } catch (e) {
-          console.error(`Error fetching raw file ${file.path}:`, e);
+          console.error(`Error fetching file content ${file.path}:`, e);
           return "";
         }
       }));
