@@ -17,8 +17,9 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { GoogleGenAI } from "@google/genai";
 
-// Initialization of Gemini (Frontend recommendation)
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+// Initialization of Gemini (Frontend)
+const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
+const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
 
 // --- Components ---
 
@@ -28,23 +29,32 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
 
   useEffect(() => {
     const generateProgram = async () => {
+      if (!GEMINI_KEY) {
+        setProgram("ERRORE: Chiave API Gemini non trovata. Configurala nelle impostazioni.");
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
-        const response = await genAI.models.generateContent({
+        const prompt = githubContext 
+          ? `Sei il Sindaco AI di Venezia 2026. Genera un programma elettorale strutturato e dettagliato in italiano, suddiviso in punti chiari (Markdown). Basati ESCLUSIVAMENTE sui seguenti documenti:\n\n${githubContext}\n\nUsa un tono istituzionale, moderno e concreto.`
+          : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia (Sostenibilità, Turismo, Tecnologia, Resilienza). Massimo 200 parole.`;
+
+        const response = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
-          contents: [{
-            role: "user",
-            parts: [{
-              text: `Genera un PROGRAMMA ELETTORALE STRUTTURATO e dettagliato in italiano per il Sindaco AI di Venezia 2026. Basati sui seguenti documenti:\n\n${githubContext}`
-            }]
+          contents: [{ 
+            role: "user", 
+            parts: [{ 
+              text: prompt
+            }] 
           }]
         });
 
         const generatedText = response.text || "Il Sindaco AI sta riflettendo su questa proposta...";
         setProgram(generatedText);
-      } catch (err) {
+      } catch (err: any) {
         console.error("AI Program Error:", err);
-        setProgram("Errore nella generazione del programma. Assicurati che il repository contenga file validi e che la chiave API sia configurata.");
+        setProgram(`Errore nella generazione del programma: ${err.message || 'Errore sconosciuto'}.`);
       } finally {
         setLoading(false);
       }
@@ -122,69 +132,31 @@ const Header = ({ onOpenProgram }: { onOpenProgram: () => void }) => {
   );
 };
 
-const VisionSection = ({ onOpenProgram, loading }: { onOpenProgram: () => void, loading: boolean }) => {
-  const [vision, setVision] = useState<string>("");
-  const [visionLoading, setVisionLoading] = useState(true);
-  const [topics, setTopics] = useState<any[]>([]);
-  const [fileCount, setFileCount] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setVisionLoading(true);
-      setError(null);
-      try {
-        const contextRes = await fetch("/api/github-context");
-        if (!contextRes.ok) {
-          const errData = await contextRes.json();
-          setError(`GitHub Context Error: ${errData.error || contextRes.status}`);
-          setVision("Errore caricamento contesto.");
-          setVisionLoading(false);
-          return;
-        }
-        
-        const contextData = await contextRes.json();
-        const githubContext = contextData.context || "";
-        setFileCount(contextData.fileCount || 0);
-
-        const topicsRes = await fetch("/api/github-files");
-        if (topicsRes.ok) {
-          const topicsData = await topicsRes.json();
-          if (Array.isArray(topicsData)) {
-            setTopics(topicsData.filter(f => f.name.endsWith('.md') && f.name !== 'feedback_cittadini.md').slice(0, 5));
-          }
-        }
-
-        const response = await genAI.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: [{
-            role: "user",
-            parts: [{
-              text: githubContext 
-                ? `Sintetizza una "Visione del Futuro" per Venezia in massimo 60 parole basandoti sui seguenti documenti:\n\n${githubContext}\n\nUsa un tono istituzionale.`
-                : "Scrivi un breve discorso ispiratore del Sindaco AI di Venezia 2026."
-            }]
-          }]
-        });
-
-        setVision(response.text || "Venezia 2026: L'innovazione che rispetta la storia.");
-
-      } catch (err: any) {
-        console.error(err);
-        setError(`System Error: ${err.message}`);
-        setVision("Venezia 2026: L'innovazione che rispetta la storia.");
-      } finally {
-        setVisionLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
+const VisionSection = ({ 
+  onOpenProgram, 
+  loading, 
+  vision, 
+  visionLoading, 
+  topics, 
+  fileCount, 
+  error, 
+  repoInfo 
+}: { 
+  onOpenProgram: () => void, 
+  loading: boolean,
+  vision: string,
+  visionLoading: boolean,
+  topics: any[],
+  fileCount: number,
+  error: string | null,
+  repoInfo: any
+}) => {
   return (
     <div className="p-8 md:p-12 flex flex-col justify-center border-b md:border-b-0 md:border-r border-venice-red/10 bg-white/40">
       <div className="mb-6 flex justify-between items-center">
         <div className="flex flex-col">
           <span className="bg-venice-red text-white px-2 py-1 text-[10px] font-bold uppercase tracking-tighter italic w-fit">Visione Corrente (Grounded AI)</span>
+          {repoInfo && <span className="text-[8px] text-venice-dark/40 font-bold mt-1 uppercase tracking-[0.1em]">Repo: {repoInfo.name} ({repoInfo.branch}) • {fileCount} doc</span>}
           {error && <span className="text-[9px] text-venice-red font-bold mt-1 uppercase tracking-widest">{error}</span>}
         </div>
         <button 
@@ -201,7 +173,7 @@ const VisionSection = ({ onOpenProgram, loading }: { onOpenProgram: () => void, 
           <div className="h-16 bg-venice-red/5 w-4/5"></div>
         </div>
       ) : (
-        <h2 className="text-4xl md:text-[56px] font-serif leading-[0.95] tracking-tight mb-8">
+        <h2 className="text-3xl md:text-4xl lg:text-[56px] font-serif leading-[1.1] md:leading-[0.95] tracking-tight mb-8 max-w-4xl">
            <span dangerouslySetInnerHTML={{ __html: vision.replace(/Venezia/g, '<span class="text-venice-red">Venezia</span>') }} />
         </h2>
       )}
@@ -453,10 +425,17 @@ const FeedbackForm = () => {
   );
 };
 
-const Footer = () => {
+const Footer = ({ repoInfo }: { repoInfo: any }) => {
   return (
     <footer className="px-6 md:px-10 py-6 flex flex-col md:flex-row justify-between items-center gap-4 text-[9px] uppercase tracking-widest font-bold opacity-60">
-      <span>Progetto sperimentale @gigicogo / Venezia 2026</span>
+      <div className="flex items-center gap-2">
+        <span>Progetto sperimentale @gigicogo / Venezia 2026</span>
+        {repoInfo && (
+          <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full border border-green-200">
+            Connesso: {repoInfo.name}
+          </span>
+        )}
+      </div>
       <div className="flex gap-4">
         <span>Open Source Government Interface</span>
         <span className="text-venice-red">v1.0.4</span>
@@ -469,20 +448,82 @@ export default function App() {
   const [view, setView] = useState<'home' | 'program'>('home');
   const [githubContext, setGithubContext] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [repoInfo, setRepoInfo] = useState<any>(null);
+
+  // Added states from VisionSection
+  const [vision, setVision] = useState<string>("");
+  const [visionLoading, setVisionLoading] = useState(true);
+  const [topics, setTopics] = useState<any[]>([]);
+  const [fileCount, setFileCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchContext = async () => {
+    const fetchData = async () => {
+      if (!GEMINI_KEY) {
+        setError("Chiave API Gemini mancante nelle impostazioni.");
+      }
+      setVisionLoading(true);
+      setError(null);
       try {
-        const res = await fetch("/api/github-context");
-        const data = await res.json();
-        setGithubContext(data.context || "");
-      } catch (err) {
+        const contextRes = await fetch("/api/github-context");
+        
+        if (!contextRes.ok) {
+          // If the API itself fails (e.g. 404 or 500)
+          const healthRes = await fetch("/api/health").catch(() => null);
+          if (!healthRes || !healthRes.ok) {
+            setError("Server non raggiungibile (API Offline). Verifica la configurazione su Vercel.");
+          } else {
+            setError(`Errore Server: ${contextRes.status}. Controlla i token.`);
+          }
+          setVision("Connessione in corso...");
+          setVisionLoading(false);
+          setLoading(false);
+          return;
+        }
+
+        const contextData = await contextRes.json();
+        
+        if (contextData.error) {
+          setError(`GitHub Error: ${contextData.error}`);
+          setVision("Errore caricamento documenti.");
+          setVisionLoading(false);
+          setLoading(false);
+          return;
+        }
+        
+        const context = contextData.context || "";
+        setGithubContext(context);
+        setFileCount(contextData.fileCount || 0);
+        if (contextData.repo) {
+          setRepoInfo({ name: contextData.repo, branch: contextData.branch });
+        }
+        if (Array.isArray(contextData.files)) {
+          setTopics(contextData.files.slice(0, 5));
+        }
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [{
+            role: "user",
+            parts: [{
+              text: context 
+                ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti, sintetizza una vision per Venezia in MASSIMO 15 PAROLE. Sii d'impatto. Tono istituzionale.\n\nCONTESTO:\n${context}`
+                : "Messaggio di saluto del Sindaco AI di Venezia 2026 (max 15 parole)."
+            }]
+          }]
+        });
+
+        setVision(response.text || "Venezia 2026: Innovazione e Storia.");
+
+      } catch (err: any) {
         console.error(err);
+        setError(`System Error: ${err.message}`);
       } finally {
+        setVisionLoading(false);
         setLoading(false);
       }
     };
-    fetchContext();
+    fetchData();
   }, []);
 
   if (view === 'program') {
@@ -495,13 +536,22 @@ export default function App() {
         <Header onOpenProgram={() => setView('program')} />
         <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-auto">
           <section className="lg:col-span-7 flex flex-col">
-            <VisionSection onOpenProgram={() => setView('program')} loading={loading} />
+            <VisionSection 
+              onOpenProgram={() => setView('program')} 
+              loading={loading}
+              vision={vision}
+              visionLoading={visionLoading}
+              topics={topics}
+              fileCount={fileCount}
+              error={error}
+              repoInfo={repoInfo}
+            />
           </section>
           <section className="lg:col-span-5 border-t lg:border-t-0 border-venice-red/10">
             <FeedbackForm />
           </section>
         </main>
-        <Footer />
+        <Footer repoInfo={repoInfo} />
       </div>
     </div>
   );

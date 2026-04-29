@@ -16,44 +16,56 @@ async function createServer() {
     next();
   });
 
-  // Helper to get GitHub headers
-  const getGHHeaders = (isRaw = false) => ({
-    "Accept": isRaw ? "application/vnd.github.v3.raw" : "application/vnd.github.v3+json",
-    "User-Agent": "Venezia-AI-App",
-    ...(process.env.GITHUB_TOKEN ? { "Authorization": `token ${process.env.GITHUB_TOKEN.trim()}` } : {}),
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      env: process.env.NODE_ENV,
+      repo: GITHUB_REPO,
+      hasToken: !!process.env.GITHUB_TOKEN
+    });
   });
 
-  const GITHUB_OWNER = "gigicogo";
-  const GITHUB_REPO_CANDIDATES = ["Sindaco-AI", "Elezioni-Venezia-2026", "sindaco-ai"];
+  // Helper to get GitHub headers
+  const getGHHeaders = (isRaw = false) => {
+    const headers: any = {
+      "Accept": isRaw ? "application/vnd.github.v3.raw" : "application/vnd.github.v3+json",
+      "User-Agent": "Venezia-AI-App",
+    };
+    if (process.env.GITHUB_TOKEN && process.env.GITHUB_TOKEN.trim() !== "") {
+      headers["Authorization"] = `token ${process.env.GITHUB_TOKEN.trim()}`;
+    }
+    return headers;
+  };
 
-  async function fetchWithRetry(path: string, isRaw = false) {
+  const GITHUB_OWNER = "gigicogo";
+  const GITHUB_REPO = "Elezioni-Venezia-2026";
+
+
+  async function fetchWithRetry(pathTemplate: string, isRaw = false) {
     let lastError: any = null;
-    for (const repo of GITHUB_REPO_CANDIDATES) {
+    const repo = GITHUB_REPO;
+    const branches = ["main", "master", "develop"];
+    
+    for (const branch of branches) {
       try {
+        const path = pathTemplate.replace("{branch}", branch);
         const url = `https://api.github.com/repos/${GITHUB_OWNER}/${repo}/${path}`;
-        console.log(`Trying GitHub: ${url}`);
         const res = await fetch(url, { headers: getGHHeaders(isRaw) });
-        if (res.ok) {
-          console.log(`SUCCESS in repo: ${repo}`);
-          return { res, repo };
-        }
-        const text = await res.text();
-        console.warn(`GitHub [${repo}] [${res.status}]: ${text.slice(0, 100)}...`);
-        if (res.status !== 404) {
-          lastError = new Error(`GitHub API error (${res.status}) on ${repo}: ${text}`);
-        }
+        
+        if (res.ok) return { res, repo, branch };
+        if (res.status === 401) throw new Error("GitHub Token (401 Unauthorized).");
       } catch (e: any) {
-        console.error(`Error with [${repo}]:`, e.message);
+        if (e.message.includes("401")) throw e;
         lastError = e;
       }
     }
-    throw lastError || new Error(`Resource not found in any of these repos: ${GITHUB_REPO_CANDIDATES.join(", ")}`);
+    throw lastError || new Error(`Documenti non trovati nel repository ${repo}.`);
   }
 
   // API to fetch all markdown files recursively for the file list
   app.get("/api/github-files", async (req, res) => {
     try {
-      const { res: response, repo } = await fetchWithRetry("git/trees/main?recursive=1");
+      const { res: response, repo, branch } = await fetchWithRetry("git/trees/{branch}?recursive=1");
       const data = await response.json();
       
       const files = (data.tree || [])
@@ -67,7 +79,7 @@ async function createServer() {
           name: f.path.split("/").pop(),
           path: f.path,
           sha: f.sha,
-          html_url: `https://github.com/${GITHUB_OWNER}/${repo}/blob/main/${f.path}`
+          html_url: `https://github.com/${GITHUB_OWNER}/${repo}/blob/${branch}/${f.path}`
         }))
         .reverse(); 
 
@@ -78,22 +90,23 @@ async function createServer() {
     }
   });
 
-  // API to fetch aggregated content of all markdown files for RAG (recursive)
+  // API to fetch aggregated content for RAG
   app.get("/api/github-context", async (req, res) => {
     try {
-      const { res: treeRes, repo } = await fetchWithRetry("git/trees/main?recursive=1");
+      const { res: treeRes, repo, branch } = await fetchWithRetry("git/trees/{branch}?recursive=1");
       const treeData = await treeRes.json();
       
       const mdFiles = (treeData.tree || []).filter((f: any) => 
         f.type === "blob" && 
-        f.path.endsWith(".md") && 
+        (f.path.endsWith(".md") || f.path.endsWith(".txt")) &&
         !f.path.includes("feedback_cittadini.md") &&
+        !f.path.includes("node_modules") &&
         !f.path.toLowerCase().endsWith("readme.md")
       );
       
       const contents = await Promise.all(mdFiles.map(async (file: any) => {
         try {
-          const fileRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${repo}/contents/${file.path}`, {
+          const fileRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${repo}/contents/${file.path}?ref=${branch}`, {
             headers: getGHHeaders(true)
           });
           if (!fileRes.ok) return "";
@@ -104,13 +117,23 @@ async function createServer() {
         }
       }));
 
+      const filesList = mdFiles.map((f: any) => ({
+        name: f.path.split("/").pop(),
+        path: f.path,
+        sha: f.sha,
+        html_url: `https://github.com/${GITHUB_OWNER}/${repo}/blob/${branch}/${f.path}`
+      })).reverse();
+
       res.json({ 
         context: contents.filter(c => c !== "").join("\n\n"),
-        fileCount: mdFiles.length
+        fileCount: mdFiles.length,
+        repo: repo,
+        branch: branch,
+        files: filesList // Return all for the UI
       });
     } catch (error: any) {
       console.error("Context generation error:", error);
-      res.status(500).json({ error: error.message });
+      res.json({ context: "", fileCount: 0, error: error.message });
     }
   });
 
@@ -118,7 +141,7 @@ async function createServer() {
   app.get("/api/latest-feedback", async (req, res) => {
     const filePath = "feedback_cittadini.md";
     try {
-      const { res: response } = await fetchWithRetry(`contents/${filePath}`);
+      const { res: response } = await fetchWithRetry(`contents/${filePath}?ref={branch}`);
       const fileData = await response.json();
       const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
       
@@ -144,23 +167,20 @@ async function createServer() {
   // API to submit feedback
   app.post("/api/feedback", async (req, res) => {
     const { message, category, author, _honeypot } = req.body;
-    if (_honeypot || !process.env.GITHUB_TOKEN) return res.status(200).json({ success: true });
+    if (_honeypot || !process.env.GITHUB_TOKEN) return res.status(200).json({ success: true, fake: true });
 
     try {
       const filePath = "feedback_cittadini.md";
-      let repoToUse = GITHUB_REPO_CANDIDATES[0];
+      const { res: getFileRes, repo: repoToUse, branch: branchToUse } = await fetchWithRetry(`contents/${filePath}?ref={branch}`);
+      
       let sha = "";
       let currentContent = "";
 
-      try {
-        const { res: getFileRes, repo } = await fetchWithRetry(`contents/${filePath}`);
-        repoToUse = repo;
+      if (getFileRes.ok) {
         const fileData = await getFileRes.json();
         sha = fileData.sha;
         const base64Content = fileData.content.replace(/\s/g, '');
         currentContent = Buffer.from(base64Content, 'base64').toString('utf-8');
-      } catch (e) {
-        // Filename might not exist, that's okay
       }
 
       const timestamp = new Date().toISOString();
@@ -173,12 +193,19 @@ async function createServer() {
           ...getGHHeaders(),
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ message: `Feedback citizens`, content: encodedContent, sha: sha || undefined })
+        body: JSON.stringify({ 
+          message: `Feedback citizens`, 
+          content: encodedContent, 
+          sha: sha || undefined,
+          branch: branchToUse
+        })
       });
       
       if (updateRes.ok) res.json({ success: true });
-      else res.status(400).json({ error: "GitHub update failed" });
-    } catch (error) { res.status(500).json({ error: "Server error" }); }
+      else res.status(400).json({ error: "GitHub update failed", status: updateRes.status });
+    } catch (error) { 
+      res.status(500).json({ error: "Server error" }); 
+    }
   });
 
   // Vite middleware for development
