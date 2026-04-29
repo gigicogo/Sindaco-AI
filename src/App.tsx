@@ -54,7 +54,11 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         setProgram(generatedText);
       } catch (err: any) {
         console.error("AI Program Error:", err);
-        setProgram(`Errore nella generazione del programma: ${err.message || 'Errore sconosciuto'}.`);
+        if (err.message?.includes("429") || err.message?.includes("QUOTA")) {
+          setProgram("# Programma Elettorale 2026 (Sintesi di Emergenza)\n\nL'assistente AI ha esaurito la quota di calcolo momentanea.\n\n**Pilastri Fondamentali:**\n1. Sostenibilità lagunare e idrogeno\n2. Residenzialità per i veneziani\n3. Turismo a numero gestito\n4. Innovazione tecnologica AR/VR per la cultura\n\n*Riprova tra qualche minuto per la versione completa generata dai documenti.*");
+        } else {
+          setProgram(`Errore nella generazione del programma: ${err.message || 'Errore sconosciuto'}.`);
+        }
       } finally {
         setLoading(false);
       }
@@ -501,19 +505,30 @@ export default function App() {
           setTopics(contextData.files.slice(0, 5));
         }
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: [{
-            role: "user",
-            parts: [{
-              text: context 
-                ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti, sintetizza una vision per Venezia in MASSIMO 15 PAROLE. Sii d'impatto. Tono istituzionale.\n\nCONTESTO:\n${context}`
-                : "Messaggio di saluto del Sindaco AI di Venezia 2026 (max 15 parole)."
+        try {
+          const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: [{
+              role: "user",
+              parts: [{
+                text: context 
+                  ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti, sintetizza una vision per Venezia in MASSIMO 15 PAROLE. Sii d'impatto. Tono istituzionale.\n\nCONTESTO:\n${context}`
+                  : "Messaggio di saluto del Sindaco AI di Venezia 2026 (max 15 parole)."
+              }]
             }]
-          }]
-        });
+          });
 
-        setVision(response.text || "Venezia 2026: Innovazione e Storia.");
+          setVision(response.text || "Venezia 2026: Innovazione e Storia.");
+
+        } catch (aiErr: any) {
+          console.error("Gemini Vision Error:", aiErr);
+          if (aiErr.message?.includes("429") || aiErr.message?.includes("RESOURCE_EXHAUSTED")) {
+            setVision("Venezia 2026: L'armonia tra <span class='italic'>storia millenaria</span> e futuro tecnologico.");
+            setError("Quota AI esaurita. Utilizzo visione predefinita.");
+          } else {
+            setVision("Venezia 2026: Tradizione e Innovazione.");
+          }
+        }
 
       } catch (err: any) {
         console.error(err);
