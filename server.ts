@@ -2,9 +2,22 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
+
+// Lazy initialization of Gemini
+let genAI: any = null;
+function getGenAI() {
+  if (!genAI) {
+    if (!process.env.GEMINI_API_KEY) {
+      console.warn("GEMINI_API_KEY not found in environment.");
+      return null;
+    }
+    genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return genAI;
+}
 
 async function createServer() {
   const app = express();
@@ -12,18 +25,16 @@ async function createServer() {
 
   app.use(express.json());
 
-  // Initialize Gemini
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   // API for chat with context from GitHub
   app.post("/api/chat", async (req, res) => {
     const { message, context } = req.body;
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: "Chiave Gemini non configurata" });
+    const ai = getGenAI();
+    if (!ai) {
+      return res.status(500).json({ error: "Chiave Gemini non configurata o invalida" });
     }
 
     try {
+      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
       const prompt = `Sei il Sindaco Virtuale di Venezia del 2026. 
 Usa il seguente contesto (tratto dal programma elettorale e documenti ufficiali) per rispondere alle domande dei cittadini in modo cordiale, istituzionale ma innovativo. 
 Se la risposta non è nel contesto, rispondi basandoti sulla tua conoscenza generale come sindaco ma specifica che si tratta di una visione generale.
@@ -34,12 +45,14 @@ ${context}
 DOMANDA CITTADINO:
 ${message}`;
 
-      const result = await model.generateContent(prompt);
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+      });
       const response = await result.response;
-      res.json({ text: response.text() });
+      res.json({ text: response.text });
     } catch (error) {
       console.error("AI Error:", error);
-      res.status(500).json({ error: "Errore durante la generazione della risposta" });
+      res.status(500).json({ error: "Errore durante la generazione della risposta AI" });
     }
   });
 
@@ -54,13 +67,13 @@ ${message}`;
         headers: {
           "Accept": "application/vnd.github.v3+json",
           "User-Agent": "Venezia-AI-App",
-          ...(process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}),
+          ...(process.env.GITHUB_TOKEN ? { "Authorization": `token ${process.env.GITHUB_TOKEN}` } : {}),
         }
       });
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("GitHub API error response:", errorText);
+        console.error(`GitHub API error on /github-files (${response.status}):`, errorText);
         return res.status(response.status).json({ error: `GitHub API error: ${response.status}`, details: errorText });
       }
 
@@ -148,7 +161,7 @@ ${message}`;
         headers: {
           "Accept": "application/vnd.github.v3+json",
           "User-Agent": "Venezia-AI-App",
-          ...(process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}),
+          ...(process.env.GITHUB_TOKEN ? { "Authorization": `token ${process.env.GITHUB_TOKEN}` } : {}),
         }
       });
 

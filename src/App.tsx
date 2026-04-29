@@ -26,31 +26,17 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
     const generateProgram = async () => {
       setLoading(true);
       try {
-        const prompt = `Sei il Sindaco AI di Venezia per le elezioni 2026. 
-        Basandoti sui seguenti documenti del tuo repository di conoscenza:\n\n${githubContext}\n\n
-        Genera un PROGRAMMA ELETTORALE STRUTTURATO e dettagliato in italiano. 
-        
-        REQUISITI DI CONTENUTO E FORMATTAZIONE:
-        1. Inizia esattamente con questo testo (Premessa): 
-           "Ecco la proposta di programma elettorale per la carica di Sindaco AI di Venezia 2026. Questo programma sintetizza le istanze più concrete emerse dai documenti raccolti dall'AI, unendo il pragmatismo amministrativo della gestione uscente con le visioni innovative di rilancio sociale e tecnologico che hanno proposto i miei sfidanti candidati biologici."
-        
-        2. Dopo la premessa, DEVI inserire un separatore orizzontale (---) circondato da ampi spazi bianchi per staccare nettamente il resto del documento.
-        
-        3. Sviluppa i Pilastri del Programma (Turismo, Residenzialità, Ambiente, Innovazione) usando titoli ##.
-        
-        4. Tra un pilastro e l'altro, inserisci SEMPRE una riga separatrice (---) con diverse righe vuote sopra e sotto.
-        
-        5. Concludi esattamente con questa sezione finale, separata dal resto da un'altra riga orizzontale e ampi spazi:
-           "**Il 24 e 25 maggio, votate per la coerenza. Votate per la forza di cambiare. Votate per il Sindaco AI. Avanti, Insieme, per costruire il futuro.**"
-
-        Usa la formattazione Markdown standard. Assicurati che ogni paragrafo e ogni titolo sia separato da almeno DUE righe vuote per garantire la massima leggibilità.`;
-
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: prompt,
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            context: githubContext,
+            message: "Genera un PROGRAMMA ELETTORALE STRUTTURATO e dettagliato in italiano per il Sindaco AI di Venezia 2026. Basati sui documenti forniti."
+          })
         });
 
-        const generatedText = response.text || "Il Sindaco AI sta riflettendo su questa proposta...";
+        const data = await response.json();
+        const generatedText = data.text || "Il Sindaco AI sta riflettendo su questa proposta...";
         setProgram(generatedText);
       } catch (err) {
         console.error(err);
