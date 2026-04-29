@@ -2,22 +2,8 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
-import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
-
-// Lazy initialization of Gemini
-let genAI: any = null;
-function getGenAI() {
-  if (!genAI) {
-    if (!process.env.GEMINI_API_KEY) {
-      console.warn("GEMINI_API_KEY not found in environment.");
-      return null;
-    }
-    genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  }
-  return genAI;
-}
 
 async function createServer() {
   const app = express();
@@ -25,43 +11,9 @@ async function createServer() {
 
   app.use(express.json());
 
-  // Logging middleware
   app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
     next();
-  });
-
-  // API for chat with context from GitHub
-  app.post("/api/chat", async (req, res) => {
-    const { message, context } = req.body;
-    const ai = getGenAI();
-    if (!ai) {
-      console.error("ERRORE: GEMINI_API_KEY non configurata.");
-      return res.status(500).json({ error: "Chiave Gemini non configurata o invalida" });
-    }
-
-    try {
-      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `Sei il Sindaco Virtuale di Venezia del 2026. 
-Usa il seguente contesto (tratto dal programma elettorale e documenti ufficiali) per rispondere alle domande dei cittadini in modo cordiale, istituzionale ma innovativo. 
-Se la risposta non è nel contesto, rispondi basandoti sulla tua conoscenza generale come sindaco ma specifica che si tratta di una visione generale.
-
-CONTESTO:
-${context || 'Nessun contesto aggiuntivo disponibile.'}
-
-DOMANDA CITTADINO:
-${message}`;
-
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }]
-      });
-      const response = await result.response;
-      const text = response.text();
-      res.json({ text });
-    } catch (error: any) {
-      console.error("AI Error:", error);
-      res.status(500).json({ error: "Errore durante la generazione della risposta AI", details: error.message });
-    }
   });
 
   // Helper to get GitHub headers
@@ -72,23 +24,30 @@ ${message}`;
   });
 
   const GITHUB_OWNER = "gigicogo";
-  const GITHUB_REPO_CANDIDATES = ["Sindaco-AI", "Elezioni-Venezia-2026"];
+  const GITHUB_REPO_CANDIDATES = ["Sindaco-AI", "Elezioni-Venezia-2026", "sindaco-ai"];
 
   async function fetchWithRetry(path: string, isRaw = false) {
+    let lastError: any = null;
     for (const repo of GITHUB_REPO_CANDIDATES) {
       try {
         const url = `https://api.github.com/repos/${GITHUB_OWNER}/${repo}/${path}`;
+        console.log(`Trying GitHub: ${url}`);
         const res = await fetch(url, { headers: getGHHeaders(isRaw) });
-        if (res.ok) return { res, repo };
+        if (res.ok) {
+          console.log(`SUCCESS in repo: ${repo}`);
+          return { res, repo };
+        }
+        const text = await res.text();
+        console.warn(`GitHub [${repo}] [${res.status}]: ${text.slice(0, 100)}...`);
         if (res.status !== 404) {
-          const text = await res.text();
-          throw new Error(`GitHub API error (${res.status}) on ${repo}: ${text}`);
+          lastError = new Error(`GitHub API error (${res.status}) on ${repo}: ${text}`);
         }
       } catch (e: any) {
-        if (!e.message.includes('404')) throw e;
+        console.error(`Error with [${repo}]:`, e.message);
+        lastError = e;
       }
     }
-    throw new Error(`Resource not found in any of these repos: ${GITHUB_REPO_CANDIDATES.join(", ")}`);
+    throw lastError || new Error(`Resource not found in any of these repos: ${GITHUB_REPO_CANDIDATES.join(", ")}`);
   }
 
   // API to fetch all markdown files recursively for the file list

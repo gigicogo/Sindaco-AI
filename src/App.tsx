@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Building2, 
@@ -15,6 +15,10 @@ import {
   Globe
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { GoogleGenAI } from "@google/genai";
+
+// Initialization of Gemini (Frontend recommendation)
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 // --- Components ---
 
@@ -26,21 +30,21 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
     const generateProgram = async () => {
       setLoading(true);
       try {
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            context: githubContext,
-            message: "Genera un PROGRAMMA ELETTORALE STRUTTURATO e dettagliato in italiano per il Sindaco AI di Venezia 2026. Basati sui documenti forniti."
-          })
+        const response = await genAI.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [{
+            role: "user",
+            parts: [{
+              text: `Genera un PROGRAMMA ELETTORALE STRUTTURATO e dettagliato in italiano per il Sindaco AI di Venezia 2026. Basati sui seguenti documenti:\n\n${githubContext}`
+            }]
+          }]
         });
 
-        const data = await response.json();
-        const generatedText = data.text || "Il Sindaco AI sta riflettendo su questa proposta...";
+        const generatedText = response.text || "Il Sindaco AI sta riflettendo su questa proposta...";
         setProgram(generatedText);
       } catch (err) {
-        console.error(err);
-        setProgram("Errore nella generazione del programma. Assicurati che il repository contenga file validi.");
+        console.error("AI Program Error:", err);
+        setProgram("Errore nella generazione del programma. Assicurati che il repository contenga file validi e che la chiave API sia configurata.");
       } finally {
         setLoading(false);
       }
@@ -131,39 +135,39 @@ const VisionSection = ({ onOpenProgram, loading }: { onOpenProgram: () => void, 
       setError(null);
       try {
         const contextRes = await fetch("/api/github-context");
-        const contextData = await contextRes.json();
-        
-        if (contextRes.status !== 200) {
-          setError(`GitHub Error: ${contextData.error || contextRes.status}`);
-          setVision("Connessione a GitHub non riuscita.");
+        if (!contextRes.ok) {
+          const errData = await contextRes.json();
+          setError(`GitHub Context Error: ${errData.error || contextRes.status}`);
+          setVision("Errore caricamento contesto.");
+          setVisionLoading(false);
           return;
         }
-
+        
+        const contextData = await contextRes.json();
         const githubContext = contextData.context || "";
         setFileCount(contextData.fileCount || 0);
 
         const topicsRes = await fetch("/api/github-files");
-        const topicsData = await topicsRes.json();
-        if (Array.isArray(topicsData)) {
-          setTopics(topicsData.filter(f => f.name.endsWith('.md') && f.name !== 'feedback_cittadini.md').slice(0, 5));
+        if (topicsRes.ok) {
+          const topicsData = await topicsRes.json();
+          if (Array.isArray(topicsData)) {
+            setTopics(topicsData.filter(f => f.name.endsWith('.md') && f.name !== 'feedback_cittadini.md').slice(0, 5));
+          }
         }
 
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            context: githubContext,
-            message: githubContext 
-              ? "Sintetizza una 'Visione del Futuro' per Venezia in massimo 60 parole basandoti sui documenti. Tono istituzionale."
-              : "Scrivi un breve discorso del Sindaco AI di Venezia."
-          })
+        const response = await genAI.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [{
+            role: "user",
+            parts: [{
+              text: githubContext 
+                ? `Sintetizza una "Visione del Futuro" per Venezia in massimo 60 parole basandoti sui seguenti documenti:\n\n${githubContext}\n\nUsa un tono istituzionale.`
+                : "Scrivi un breve discorso ispiratore del Sindaco AI di Venezia 2026."
+            }]
+          }]
         });
 
-        const data = await response.json();
-        if (response.status !== 200) {
-          setError(`AI Error: ${data.error || response.status}`);
-        }
-        setVision(data.text || "Venezia 2026: L'innovazione che rispetta la storia.");
+        setVision(response.text || "Venezia 2026: L'innovazione che rispetta la storia.");
 
       } catch (err: any) {
         console.error(err);
