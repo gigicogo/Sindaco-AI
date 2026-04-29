@@ -36,6 +36,7 @@ async function createServer() {
     const { message, context } = req.body;
     const ai = getGenAI();
     if (!ai) {
+      console.error("ERRORE: GEMINI_API_KEY non configurata.");
       return res.status(500).json({ error: "Chiave Gemini non configurata o invalida" });
     }
 
@@ -46,7 +47,7 @@ Usa il seguente contesto (tratto dal programma elettorale e documenti ufficiali)
 Se la risposta non è nel contesto, rispondi basandoti sulla tua conoscenza generale come sindaco ma specifica che si tratta di una visione generale.
 
 CONTESTO:
-${context}
+${context || 'Nessun contesto aggiuntivo disponibile.'}
 
 DOMANDA CITTADINO:
 ${message}`;
@@ -57,35 +58,45 @@ ${message}`;
       const response = await result.response;
       const text = response.text();
       res.json({ text });
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Error:", error);
-      res.status(500).json({ error: "Errore durante la generazione della risposta AI" });
+      res.status(500).json({ error: "Errore durante la generazione della risposta AI", details: error.message });
     }
   });
+
+  // Helper to get GitHub headers
+  const getGHHeaders = (isRaw = false) => ({
+    "Accept": isRaw ? "application/vnd.github.v3.raw" : "application/vnd.github.v3+json",
+    "User-Agent": "Venezia-AI-App",
+    ...(process.env.GITHUB_TOKEN ? { "Authorization": `token ${process.env.GITHUB_TOKEN.trim()}` } : {}),
+  });
+
+  const GITHUB_OWNER = "gigicogo";
+  const GITHUB_REPO_CANDIDATES = ["Sindaco-AI", "Elezioni-Venezia-2026"];
+
+  async function fetchWithRetry(path: string, isRaw = false) {
+    for (const repo of GITHUB_REPO_CANDIDATES) {
+      try {
+        const url = `https://api.github.com/repos/${GITHUB_OWNER}/${repo}/${path}`;
+        const res = await fetch(url, { headers: getGHHeaders(isRaw) });
+        if (res.ok) return { res, repo };
+        if (res.status !== 404) {
+          const text = await res.text();
+          throw new Error(`GitHub API error (${res.status}) on ${repo}: ${text}`);
+        }
+      } catch (e: any) {
+        if (!e.message.includes('404')) throw e;
+      }
+    }
+    throw new Error(`Resource not found in any of these repos: ${GITHUB_REPO_CANDIDATES.join(", ")}`);
+  }
 
   // API to fetch all markdown files recursively for the file list
   app.get("/api/github-files", async (req, res) => {
     try {
-      const owner = "gigicogo";
-      const repo = "Elezioni-Venezia-2026";
-      
-      // Use the Trees API with recursive=1 to get all files in all subdirectories
-      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`, {
-        headers: {
-          "Accept": "application/vnd.github.v3+json",
-          "User-Agent": "Venezia-AI-App",
-          ...(process.env.GITHUB_TOKEN ? { "Authorization": `token ${process.env.GITHUB_TOKEN}` } : {}),
-        }
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`GitHub API error on /github-files (${response.status}):`, errorText);
-        return res.status(response.status).json({ error: `GitHub API error: ${response.status}`, details: errorText });
-      }
-
+      const { res: response, repo } = await fetchWithRetry("git/trees/main?recursive=1");
       const data = await response.json();
-      // Filter for markdown files and exclude feedback file
+      
       const files = (data.tree || [])
         .filter((f: any) => 
           f.type === "blob" && 
@@ -97,34 +108,21 @@ ${message}`;
           name: f.path.split("/").pop(),
           path: f.path,
           sha: f.sha,
-          html_url: `https://github.com/${owner}/${repo}/blob/main/${f.path}`
+          html_url: `https://github.com/${GITHUB_OWNER}/${repo}/blob/main/${f.path}`
         }))
-        // Sort by path or potentially we'd want by date, but GitHub Trees API doesn't give dates easily
-        // We'll keep them as they come for now
         .reverse(); 
 
       res.json(files);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Fetch files error:", error);
-      res.status(500).json({ error: "Failed to fetch from GitHub" });
+      res.status(500).json({ error: error.message });
     }
   });
 
   // API to fetch aggregated content of all markdown files for RAG (recursive)
   app.get("/api/github-context", async (req, res) => {
     try {
-      const owner = "gigicogo";
-      const repo = "Elezioni-Venezia-2026";
-      
-      const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`, {
-        headers: {
-          "Accept": "application/vnd.github.v3+json",
-          "User-Agent": "Venezia-AI-App",
-          ...(process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}),
-        }
-      });
-      
-      if (!treeRes.ok) throw new Error(`Tree fetch failed: ${treeRes.status}`);
+      const { res: treeRes, repo } = await fetchWithRetry("git/trees/main?recursive=1");
       const treeData = await treeRes.json();
       
       const mdFiles = (treeData.tree || []).filter((f: any) => 
@@ -136,19 +134,13 @@ ${message}`;
       
       const contents = await Promise.all(mdFiles.map(async (file: any) => {
         try {
-          // Use GitHub API to fetch content instead of raw URL for better private repo support
-          const fileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${file.path}`, {
-            headers: {
-              "Accept": "application/vnd.github.v3.raw",
-              "User-Agent": "Venezia-AI-App",
-              ...(process.env.GITHUB_TOKEN ? { "Authorization": `token ${process.env.GITHUB_TOKEN}` } : {}),
-            }
+          const fileRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${repo}/contents/${file.path}`, {
+            headers: getGHHeaders(true)
           });
           if (!fileRes.ok) return "";
           const text = await fileRes.text();
           return `--- FILE: ${file.path} ---\n${text}\n`;
         } catch (e) {
-          console.error(`Error fetching file content ${file.path}:`, e);
           return "";
         }
       }));
@@ -157,34 +149,20 @@ ${message}`;
         context: contents.filter(c => c !== "").join("\n\n"),
         fileCount: mdFiles.length
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Context generation error:", error);
-      res.status(500).json({ error: "Failed to build context from GitHub" });
+      res.status(500).json({ error: error.message });
     }
   });
 
   // API to fetch and parse the latest feedback from the markdown file
   app.get("/api/latest-feedback", async (req, res) => {
+    const filePath = "feedback_cittadini.md";
     try {
-      const owner = "gigicogo";
-      const repo = "Elezioni-Venezia-2026";
-      const filePath = "feedback_cittadini.md";
-
-      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
-        headers: {
-          "Accept": "application/vnd.github.v3+json",
-          "User-Agent": "Venezia-AI-App",
-          ...(process.env.GITHUB_TOKEN ? { "Authorization": `token ${process.env.GITHUB_TOKEN}` } : {}),
-        }
-      });
-
-      if (!response.ok) return res.json({ feedbacks: [] });
-
+      const { res: response } = await fetchWithRetry(`contents/${filePath}`);
       const fileData = await response.json();
       const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
-
-      // Simple parsing of the markdown entries
-      // Entries look like: ### Feedback di [Author] - [Timestamp]\n**Categoria:** [Category]\n\n[Message]
+      
       const entries = content.split('---').filter(e => e.trim() !== "");
       const parsed = entries.map(entry => {
         const titleMatch = entry.match(/### Feedback di (.*) -/);
@@ -200,52 +178,45 @@ ${message}`;
 
       res.json({ feedbacks: parsed });
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch feedback list" });
+      res.json({ feedbacks: [] });
     }
   });
 
   // API to submit feedback
   app.post("/api/feedback", async (req, res) => {
     const { message, category, author, _honeypot } = req.body;
-    
-    // Check honeypot (if it's filled, it's likely a bot)
-    if (_honeypot) {
-      return res.status(200).json({ success: true, note: "Filtered as spam" });
-    }
+    if (_honeypot || !process.env.GITHUB_TOKEN) return res.status(200).json({ success: true });
 
-    if (!process.env.GITHUB_TOKEN) return res.status(500).json({ error: "No token" });
     try {
-      const owner = "gigicogo";
-      const repo = "Elezioni-Venezia-2026";
       const filePath = "feedback_cittadini.md";
-      const getFileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
-        headers: { 
-          Authorization: `token ${process.env.GITHUB_TOKEN}`,
-          "User-Agent": "Venezia-AI-App"
-        }
-      });
+      let repoToUse = GITHUB_REPO_CANDIDATES[0];
       let sha = "";
       let currentContent = "";
-      if (getFileRes.ok) {
+
+      try {
+        const { res: getFileRes, repo } = await fetchWithRetry(`contents/${filePath}`);
+        repoToUse = repo;
         const fileData = await getFileRes.json();
         sha = fileData.sha;
-        // GitHub content can have multiple lines with \n
         const base64Content = fileData.content.replace(/\s/g, '');
         currentContent = Buffer.from(base64Content, 'base64').toString('utf-8');
+      } catch (e) {
+        // Filename might not exist, that's okay
       }
+
       const timestamp = new Date().toISOString();
       const newEntry = `\n\n### Feedback di ${author || 'Anonimo'} - ${timestamp}\n**Categoria:** ${category}\n\n${message}\n\n---\n`;
-      const updatedContent = currentContent + newEntry;
-      const encodedContent = Buffer.from(updatedContent).toString('base64');
-      const updateRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+      const encodedContent = Buffer.from(currentContent + newEntry).toString('base64');
+      
+      const updateRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${repoToUse}/contents/${filePath}`, {
         method: "PUT",
         headers: { 
-          Authorization: `token ${process.env.GITHUB_TOKEN}`, 
-          "Content-Type": "application/json",
-          "User-Agent": "Venezia-AI-App"
+          ...getGHHeaders(),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ message: `Feedback citizens`, content: encodedContent, sha: sha || undefined })
       });
+      
       if (updateRes.ok) res.json({ success: true });
       else res.status(400).json({ error: "GitHub update failed" });
     } catch (error) { res.status(500).json({ error: "Server error" }); }

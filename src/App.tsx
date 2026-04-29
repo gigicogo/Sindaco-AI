@@ -123,13 +123,22 @@ const VisionSection = ({ onOpenProgram, loading }: { onOpenProgram: () => void, 
   const [visionLoading, setVisionLoading] = useState(true);
   const [topics, setTopics] = useState<any[]>([]);
   const [fileCount, setFileCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       setVisionLoading(true);
+      setError(null);
       try {
         const contextRes = await fetch("/api/github-context");
         const contextData = await contextRes.json();
+        
+        if (contextRes.status !== 200) {
+          setError(`GitHub Error: ${contextData.error || contextRes.status}`);
+          setVision("Connessione a GitHub non riuscita.");
+          return;
+        }
+
         const githubContext = contextData.context || "";
         setFileCount(contextData.fileCount || 0);
 
@@ -138,10 +147,6 @@ const VisionSection = ({ onOpenProgram, loading }: { onOpenProgram: () => void, 
         if (Array.isArray(topicsData)) {
           setTopics(topicsData.filter(f => f.name.endsWith('.md') && f.name !== 'feedback_cittadini.md').slice(0, 5));
         }
-
-        const prompt = githubContext 
-          ? `Sei il Sindaco AI di Venezia per le elezioni 2026. Basandoti ESCLUSIVAMENTE sui seguenti documenti estratti dal tuo repository di conoscenza:\n\n${githubContext}\n\nSintetizza una "Visione del Futuro" per Venezia in massimo 60 parole. Usa un tono istituzionale, ispiratore e moderno. Focalizzati sui punti di convergenza dei programmi.`
-          : "Scrivi un breve e ispiratore discorso del 'Sindaco AI di Venezia' per le elezioni del 2026. Massimo 50 parole in italiano, tono futurista ma legato alla tradizione.";
 
         const response = await fetch("/api/chat", {
           method: "POST",
@@ -155,10 +160,14 @@ const VisionSection = ({ onOpenProgram, loading }: { onOpenProgram: () => void, 
         });
 
         const data = await response.json();
+        if (response.status !== 200) {
+          setError(`AI Error: ${data.error || response.status}`);
+        }
         setVision(data.text || "Venezia 2026: L'innovazione che rispetta la storia.");
 
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        setError(`System Error: ${err.message}`);
         setVision("Venezia 2026: L'innovazione che rispetta la storia.");
       } finally {
         setVisionLoading(false);
@@ -170,7 +179,10 @@ const VisionSection = ({ onOpenProgram, loading }: { onOpenProgram: () => void, 
   return (
     <div className="p-8 md:p-12 flex flex-col justify-center border-b md:border-b-0 md:border-r border-venice-red/10 bg-white/40">
       <div className="mb-6 flex justify-between items-center">
-        <span className="bg-venice-red text-white px-2 py-1 text-[10px] font-bold uppercase tracking-tighter italic">Visione Corrente (Grounded AI)</span>
+        <div className="flex flex-col">
+          <span className="bg-venice-red text-white px-2 py-1 text-[10px] font-bold uppercase tracking-tighter italic w-fit">Visione Corrente (Grounded AI)</span>
+          {error && <span className="text-[9px] text-venice-red font-bold mt-1 uppercase tracking-widest">{error}</span>}
+        </div>
         <button 
           onClick={onOpenProgram}
           className="text-[10px] font-bold uppercase tracking-[0.2em] text-venice-red bg-venice-red/5 px-4 py-2 border border-venice-red/20 hover:bg-venice-red hover:text-white transition-all flex items-center gap-2 group"
@@ -440,7 +452,7 @@ const FeedbackForm = () => {
 const Footer = () => {
   return (
     <footer className="px-6 md:px-10 py-6 flex flex-col md:flex-row justify-between items-center gap-4 text-[9px] uppercase tracking-widest font-bold opacity-60">
-      <span>Progetto sperimentale @gigicogo / Elezioni-Venezia-2026</span>
+      <span>Progetto sperimentale @gigicogo / Venezia 2026</span>
       <div className="flex gap-4">
         <span>Open Source Government Interface</span>
         <span className="text-venice-red">v1.0.4</span>
