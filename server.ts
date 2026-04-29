@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
+import { GoogleGenerativeAI } from "@google/genai";
 
 dotenv.config();
 
@@ -10,6 +11,37 @@ async function createServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  // Initialize Gemini
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  // API for chat with context from GitHub
+  app.post("/api/chat", async (req, res) => {
+    const { message, context } = req.body;
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: "Chiave Gemini non configurata" });
+    }
+
+    try {
+      const prompt = `Sei il Sindaco Virtuale di Venezia del 2026. 
+Usa il seguente contesto (tratto dal programma elettorale e documenti ufficiali) per rispondere alle domande dei cittadini in modo cordiale, istituzionale ma innovativo. 
+Se la risposta non è nel contesto, rispondi basandoti sulla tua conoscenza generale come sindaco ma specifica che si tratta di una visione generale.
+
+CONTESTO:
+${context}
+
+DOMANDA CITTADINO:
+${message}`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      res.json({ text: response.text() });
+    } catch (error) {
+      console.error("AI Error:", error);
+      res.status(500).json({ error: "Errore durante la generazione della risposta" });
+    }
+  });
 
   // API to fetch all markdown files recursively for the file list
   app.get("/api/github-files", async (req, res) => {
@@ -21,12 +53,15 @@ async function createServer() {
       const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`, {
         headers: {
           "Accept": "application/vnd.github.v3+json",
+          "User-Agent": "Venezia-AI-App",
           ...(process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}),
         }
       });
       
       if (!response.ok) {
-        return res.status(response.status).json({ error: "GitHub API error" });
+        const errorText = await response.text();
+        console.error("GitHub API error response:", errorText);
+        return res.status(response.status).json({ error: `GitHub API error: ${response.status}`, details: errorText });
       }
 
       const data = await response.json();
@@ -64,6 +99,7 @@ async function createServer() {
       const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`, {
         headers: {
           "Accept": "application/vnd.github.v3+json",
+          "User-Agent": "Venezia-AI-App",
           ...(process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}),
         }
       });
@@ -111,6 +147,7 @@ async function createServer() {
       const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
         headers: {
           "Accept": "application/vnd.github.v3+json",
+          "User-Agent": "Venezia-AI-App",
           ...(process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}),
         }
       });
@@ -156,7 +193,10 @@ async function createServer() {
       const repo = "Elezioni-Venezia-2026";
       const filePath = "feedback_cittadini.md";
       const getFileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
-        headers: { Authorization: `token ${process.env.GITHUB_TOKEN}` }
+        headers: { 
+          Authorization: `token ${process.env.GITHUB_TOKEN}`,
+          "User-Agent": "Venezia-AI-App"
+        }
       });
       let sha = "";
       let currentContent = "";
@@ -173,7 +213,11 @@ async function createServer() {
       const encodedContent = Buffer.from(updatedContent).toString('base64');
       const updateRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
         method: "PUT",
-        headers: { Authorization: `token ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json" },
+        headers: { 
+          Authorization: `token ${process.env.GITHUB_TOKEN}`, 
+          "Content-Type": "application/json",
+          "User-Agent": "Venezia-AI-App"
+        },
         body: JSON.stringify({ message: `Feedback citizens`, content: encodedContent, sha: sha || undefined })
       });
       if (updateRes.ok) res.json({ success: true });
