@@ -53,10 +53,14 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         const generatedText = response.text || "Il Sindaco AI sta riflettendo su questa proposta...";
         setProgram(generatedText);
       } catch (err: any) {
-        console.error("AI Program Error:", err);
-        if (err.message?.includes("429") || err.message?.includes("QUOTA")) {
+        const errorMsg = err.message || "";
+        const isQuotaError = errorMsg.includes("429") || errorMsg.includes("QUOTA") || errorMsg.includes("RESOURCE_EXHAUSTED");
+        
+        if (isQuotaError) {
+          console.warn("Gemini Quota Exceeded in ProgramPage. Using fallback content.");
           setProgram("# Programma Elettorale 2026 (Sintesi di Emergenza)\n\nL'assistente AI ha esaurito la quota di calcolo momentanea.\n\n**Pilastri Fondamentali:**\n1. Sostenibilità lagunare e idrogeno\n2. Residenzialità per i veneziani\n3. Turismo a numero gestito\n4. Innovazione tecnologica AR/VR per la cultura\n\n*Riprova tra qualche minuto per la versione completa generata dai documenti.*");
         } else {
+          console.error("AI Program Error:", err);
           setProgram(`Errore nella generazione del programma: ${err.message || 'Errore sconosciuto'}.`);
         }
       } finally {
@@ -521,11 +525,15 @@ export default function App() {
           setVision(response.text || "Venezia 2026: Innovazione e Storia.");
 
         } catch (aiErr: any) {
-          console.error("Gemini Vision Error:", aiErr);
-          if (aiErr.message?.includes("429") || aiErr.message?.includes("RESOURCE_EXHAUSTED")) {
+          const aiErrorMsg = aiErr.message || "";
+          const isQuota = aiErrorMsg.includes("429") || aiErrorMsg.includes("RESOURCE_EXHAUSTED") || aiErrorMsg.includes("QUOTA");
+          
+          if (isQuota) {
+            console.warn("Gemini Quota Exceeded in Vision. Using fallback vision.");
             setVision("Venezia 2026: L'armonia tra <span class='italic'>storia millenaria</span> e futuro tecnologico.");
-            setError("Quota AI esaurita. Utilizzo visione predefinita.");
+            setError("Servizio AI in manutenzione (Quota Esaurita).");
           } else {
+            console.error("Gemini Vision Error:", aiErr);
             setVision("Venezia 2026: Tradizione e Innovazione.");
           }
         }
