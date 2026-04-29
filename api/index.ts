@@ -96,6 +96,8 @@ app.get("/api/github-context", async (req, res) => {
     res.json({ 
       context: contents.filter(c => c !== "").join("\n\n"),
       fileCount: mdFiles.length,
+      repo: repo,
+      branch: branch,
       files: mdFiles.map((f: any) => ({
         name: f.path.split("/").pop(),
         path: f.path,

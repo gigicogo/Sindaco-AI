@@ -37,8 +37,17 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
       setLoading(true);
       try {
         const prompt = githubContext 
-          ? `Sei il Sindaco AI di Venezia 2026. Genera un programma elettorale strutturato e dettagliato in italiano, suddiviso in punti chiari (Markdown). Basati ESCLUSIVAMENTE sui seguenti documenti:\n\n${githubContext}\n\nUsa un tono istituzionale, moderno e concreto.`
-          : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia (Sostenibilità, Turismo, Tecnologia, Resilienza). Massimo 200 parole.`;
+          ? `Sei il Sindaco AI di Venezia 2026. Genera un programma elettorale strutturato e dettagliato in italiano, suddiviso in punti chiari (Markdown). 
+             
+             REGOLE TASSATIVE:
+             1. Basati ESCLUSIVAMENTE sui documenti forniti nel contesto.
+             2. Non menzionare MAI nomi di altri candidati o persone reali (come "Venturini" o altri).
+             3. Identificati SEMPRE e SOLO come il "Sindaco Virtuale AI".
+             4. Usa un tono istituzionale, visionario e concreto.
+             5. Inizia con un'introduzione solenne sui valori della Repubblica Digitale di Venezia.
+
+             CONTESTO DOCUMENTI:\n\n${githubContext}`
+          : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia.`;
 
         const response = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
@@ -58,7 +67,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         
         if (isQuotaError) {
           console.warn("Gemini Quota Exceeded in ProgramPage. Using fallback content.");
-          setProgram("# Programma Elettorale 2026 (Sintesi di Emergenza)\n\nL'assistente AI ha esaurito la quota di calcolo momentanea.\n\n**Pilastri Fondamentali:**\n1. Sostenibilità lagunare e idrogeno\n2. Residenzialità per i veneziani\n3. Turismo a numero gestito\n4. Innovazione tecnologica AR/VR per la cultura\n\n*Riprova tra qualche minuto per la versione completa generata dai documenti.*");
+          setProgram("# Programma Elettorale 2026\n\n*Nota: Il servizio AI è temporaneamente in coda (Free Tier). Di seguito i punti cardine estratti dalla memoria cache.*\n\n**Pilastri della Visione Virtuale:**\n1. **Sostenibilità Totale:** Transizione energetica della flotta nautica e tutela della laguna.\n2. **Venezia ai Veneziani:** Incentivi alla residenzialità e limiti massimi alle locazioni turistiche.\n3. **Cultura Aumentata:** Trasformazione di Venezia nel primo polo mondiale di arte digitale e AR/VR.\n4. **Sicurezza Predittiva:** Gestione intelligente dei flussi e protezione idraulica avanzata.\n\n*Riprova tra poco per il documento integrale generato dai tuoi documenti GitHub.*");
         } else {
           console.error("AI Program Error:", err);
           setProgram(`Errore nella generazione del programma: ${err.message || 'Errore sconosciuto'}.`);
@@ -83,8 +92,8 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         </button>
 
         <div className="mb-12 border-b-2 border-venice-dark pb-8">
-          <h2 className="text-[10px] font-bold tracking-[0.3em] uppercase text-venice-red mb-2">Documento Ufficiale</h2>
-          <h1 className="text-4xl md:text-6xl font-serif italic text-venice-dark leading-none">Il mio programma <br/> per Venezia 2026</h1>
+          <h2 className="text-[10px] font-bold tracking-[0.3em] uppercase text-venice-red mb-2">Repubblica Digitale di Venezia</h2>
+          <h1 className="text-4xl md:text-6xl font-serif italic text-venice-dark leading-none">Programma Politico <br/> Sindaco Virtuale 2026</h1>
         </div>
 
         {loading ? (
@@ -100,9 +109,15 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
           </div>
         )}
         
-        <div className="mt-20 pt-8 border-t border-venice-dark/10 flex justify-between items-center opacity-40 grayscale">
-          <Building2 className="w-8 h-8" />
-          <span className="text-[9px] font-bold uppercase tracking-widest">Generato via GitHub RAG Engine • {new Date().toLocaleDateString()}</span>
+        <div className="mt-20 pt-8 border-t border-venice-dark/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-50">
+          <div className="flex items-center gap-3">
+            <Building2 className="w-8 h-8" />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-widest">Documento Prodotto dal Sindaco Virtuale AI</span>
+              <span className="text-[8px] font-medium opacity-60">Basato su Dataset GitHub Elettorale • Venezia 2026</span>
+            </div>
+          </div>
+          <span className="text-[9px] font-bold uppercase tracking-widest border border-venice-dark px-2 py-1 italic">Copia Ufficiale per la Cittadinanza</span>
         </div>
       </div>
     </div>
@@ -436,12 +451,18 @@ const FeedbackForm = () => {
 const Footer = ({ repoInfo }: { repoInfo: any }) => {
   return (
     <footer className="px-6 md:px-10 py-6 flex flex-col md:flex-row justify-between items-center gap-4 text-[9px] uppercase tracking-widest font-bold opacity-60">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         <span>Progetto sperimentale @gigicogo / Venezia 2026</span>
-        {repoInfo && (
-          <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full border border-green-200">
-            Connesso: {repoInfo.name}
-          </span>
+        {repoInfo ? (
+          <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1 rounded-full border border-green-200 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+            <span>Connesso: {repoInfo.name}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-venice-red/5 text-venice-red px-3 py-1 rounded-full border border-venice-red/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-venice-red animate-pulse"></span>
+            <span>In attesa di connessione...</span>
+          </div>
         )}
       </div>
       <div className="flex gap-4">
@@ -531,7 +552,7 @@ export default function App() {
           if (isQuota) {
             console.warn("Gemini Quota Exceeded in Vision. Using fallback vision.");
             setVision("Venezia 2026: L'armonia tra <span class='italic'>storia millenaria</span> e futuro tecnologico.");
-            setError("Servizio AI in manutenzione (Quota Esaurita).");
+            setError("Quota Gemini API esaurita (Free Tier). Riprova tra 60 secondi.");
           } else {
             console.error("Gemini Vision Error:", aiErr);
             setVision("Venezia 2026: Tradizione e Innovazione.");
