@@ -245,15 +245,19 @@ ${message}`;
 
 const appPromise = createServer();
 
-// For local development or non-Vercel environments
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+// In development or local environment, always listen on 3000
+if (!process.env.VERCEL) {
   appPromise.then(app => {
-    app.listen(3000, "0.0.0.0", () => {
-      console.log(`Server running on port 3000`);
+    const port = 3000;
+    app.listen(port, "0.0.0.0", () => {
+      console.log(`>>> Server pronto su http://0.0.0.0:${port}`);
     });
+  }).catch(err => {
+    console.error("ERRORE AVVIO SERVER:", err);
   });
 }
 
+// Export for Vercel
 export default async (req: any, res: any) => {
   const app = await appPromise;
   return app(req, res);

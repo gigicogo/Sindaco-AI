@@ -15,10 +15,6 @@ import {
   Globe
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { GoogleGenAI } from "@google/genai";
-
-// Initialization of Gemini
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // --- Components ---
 
@@ -161,13 +157,19 @@ const VisionSection = ({ onOpenProgram, loading }: { onOpenProgram: () => void, 
           ? `Sei il Sindaco AI di Venezia per le elezioni 2026. Basandoti ESCLUSIVAMENTE sui seguenti documenti estratti dal tuo repository di conoscenza:\n\n${githubContext}\n\nSintetizza una "Visione del Futuro" per Venezia in massimo 60 parole. Usa un tono istituzionale, ispiratore e moderno. Focalizzati sui punti di convergenza dei programmi.`
           : "Scrivi un breve e ispiratore discorso del 'Sindaco AI di Venezia' per le elezioni del 2026. Massimo 50 parole in italiano, tono futurista ma legato alla tradizione.";
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: prompt,
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            context: githubContext,
+            message: githubContext 
+              ? "Sintetizza una 'Visione del Futuro' per Venezia in massimo 60 parole basandoti sui documenti. Tono istituzionale."
+              : "Scrivi un breve discorso del Sindaco AI di Venezia."
+          })
         });
 
-        const generatedVision = response.text || "Unire laguna e terraferma in un unico respiro sostenibile.";
-        setVision(generatedVision);
+        const data = await response.json();
+        setVision(data.text || "Venezia 2026: L'innovazione che rispetta la storia.");
 
       } catch (err) {
         console.error(err);
