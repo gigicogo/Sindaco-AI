@@ -21,7 +21,8 @@ async function createServer() {
       status: "ok", 
       env: process.env.NODE_ENV,
       repo: GITHUB_REPO,
-      hasToken: !!process.env.GITHUB_TOKEN
+      hasToken: !!process.env.GITHUB_TOKEN,
+      authPreview: process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN.substring(0, 4)}...` : "none"
     });
   });
 
@@ -209,18 +210,19 @@ async function createServer() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
+    // Static serving is handled by Vercel for production, 
+    // but we keep this for local production tests
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    if (require('fs').existsSync(distPath)) {
+      app.use(express.static(distPath));
+    }
   }
 
   return app;
