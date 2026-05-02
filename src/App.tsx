@@ -497,6 +497,25 @@ const Footer = ({ repoInfo }: { repoInfo: any }) => {
 
 export default function App() {
   const [view, setView] = useState<'home' | 'program'>('home');
+  
+  // Hash-based routing to persist view on reload
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash === 'programma') setView('program');
+      else setView('home');
+    };
+    
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  const changeView = (newView: 'home' | 'program') => {
+    window.location.hash = newView === 'program' ? 'programma' : '';
+    setView(newView);
+  };
+
   const [githubContext, setGithubContext] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [repoInfo, setRepoInfo] = useState<any>(null);
@@ -574,7 +593,7 @@ export default function App() {
           if (isQuota) {
             console.warn("Gemini Quota Exceeded in Vision. Using fallback vision.");
             setVision("Venezia 2026: L'armonia tra <span class='italic'>storia millenaria</span> e futuro tecnologico.");
-            setError("Quota Gemini API esaurita (Free Tier). Riprova tra 60 secondi.");
+            setError("Servizio AI momentaneamente in coda. Consultazione disponibile.");
           } else {
             console.error("Gemini Vision Error:", aiErr);
             setVision("Venezia 2026: Tradizione e Innovazione.");
@@ -593,17 +612,17 @@ export default function App() {
   }, []);
 
   if (view === 'program') {
-    return <ProgramPage onBack={() => setView('home')} githubContext={githubContext} />;
+    return <ProgramPage onBack={() => changeView('home')} githubContext={githubContext} />;
   }
 
   return (
     <div className="min-h-screen bg-venice-cream flex items-center justify-center p-0 md:p-8">
       <div className="w-full max-w-7xl bg-venice-cream text-venice-dark flex flex-col overflow-hidden border-[8px] md:border-[16px] border-venice-red shadow-2xl">
-        <Header onOpenProgram={() => setView('program')} />
+        <Header onOpenProgram={() => changeView('program')} />
         <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-auto">
           <section className="lg:col-span-7 flex flex-col">
             <VisionSection 
-              onOpenProgram={() => setView('program')} 
+              onOpenProgram={() => changeView('program')} 
               loading={loading}
               vision={vision}
               visionLoading={visionLoading}
