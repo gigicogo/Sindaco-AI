@@ -18,8 +18,11 @@ import ReactMarkdown from 'react-markdown';
 import { GoogleGenAI } from "@google/genai";
 
 // Initialization of Gemini (Frontend)
-const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
-const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : "");
+const ai = new GoogleGenAI(GEMINI_KEY);
+if (!GEMINI_KEY && typeof window !== 'undefined' && !window.location.hostname.includes('run.app')) {
+  console.error("VITE_GEMINI_API_KEY is missing. Please add it to your environment variables.");
+}
 
 // --- Components ---
 
@@ -38,7 +41,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
       }
 
       if (!GEMINI_KEY) {
-        setProgram("ERRORE: Chiave API Gemini non trovata. Configurala nelle impostazioni.");
+        setProgram("ERRORE: Chiave API Gemini non configurata.\n\nSe sei su Vercel, aggiungi la variabile d'ambiente `VITE_GEMINI_API_KEY` nel pannello di controllo del progetto.");
         setLoading(false);
         return;
       }
@@ -59,7 +62,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
           : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia (Sostenibilità, Turismo, Tecnologia, Resilienza). Massimo 300 parole.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-1.5-flash",
           contents: [{ 
             role: "user", 
             parts: [{ 
@@ -573,7 +576,7 @@ export default function App() {
 
         try {
           const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-1.5-flash",
             contents: [{
               role: "user",
               parts: [{
