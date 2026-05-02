@@ -11,7 +11,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Initialize Gemini on server
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
+const genAI = GEMINI_API_KEY ? new GoogleGenAI(GEMINI_API_KEY) : null;
 
 const GITHUB_OWNER = "gigicogo";
 const GITHUB_REPO = "Elezioni-Venezia-2026";
@@ -219,16 +219,15 @@ app.post("/api/feedback", async (req, res) => {
 app.post("/api/ai-generate", async (req, res) => {
   const { prompt } = req.body;
 
-  if (!ai) {
+  if (!genAI) {
     return res.status(500).json({ error: "AI Service not initialized on Vercel. Check GEMINI_API_KEY." });
   }
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt
-    });
-    res.json({ text: response.text });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    res.json({ text: response.text() });
   } catch (error: any) {
     console.error("AI Error on Vercel:", error);
     res.status(error.status || 500).json({ error: error.message || "AI Generation failed" });
