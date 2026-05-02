@@ -18,13 +18,13 @@ import ReactMarkdown from 'react-markdown';
 import { GoogleGenAI } from "@google/genai";
 
 // Initialization of Gemini (Frontend)
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : "");
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
 // Prevent crash if key is missing or invalid
 let ai: any = null;
 if (GEMINI_KEY && GEMINI_KEY.trim() !== "") {
   try {
-    ai = new GoogleGenAI(GEMINI_KEY);
+    ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
   } catch (e) {
     console.error("Gemini initialization failed:", e);
   }
