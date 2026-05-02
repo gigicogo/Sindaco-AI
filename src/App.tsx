@@ -72,13 +72,8 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
           : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia (Sostenibilità, Turismo, Tecnologia, Resilienza). Massimo 300 parole.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-1.5-flash",
-          contents: [{ 
-            role: "user", 
-            parts: [{ 
-              text: prompt
-            }] 
-          }]
+          model: "gemini-3-flash-preview",
+          contents: prompt
         });
 
         const generatedText = response.text || "Il Sindaco AI sta riflettendo su questa proposta...";
@@ -86,16 +81,16 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         // 2. Salva in Cache
         sessionStorage.setItem("sindaco_program_2026", generatedText);
       } catch (err: any) {
-        const errorMsg = err.message || "";
+        const errorMsg = (err.message || String(err)).toUpperCase();
         const isQuotaError = errorMsg.includes("429") || errorMsg.includes("QUOTA") || errorMsg.includes("RESOURCE_EXHAUSTED");
-        const isHighDemand = errorMsg.includes("503") || errorMsg.includes("UNAVAILABLE") || errorMsg.includes("high demand");
+        const isHighDemand = errorMsg.includes("503") || errorMsg.includes("UNAVAILABLE") || errorMsg.includes("HIGH DEMAND");
         
         if (isQuotaError || isHighDemand) {
           console.warn("Gemini Service Issue. Using fallback content.");
           setProgram(`# Programma Elettorale 2026\n\n*Nota: Il servizio di protocollo AI è momentaneamente congestionato a causa dell'alta richiesta.* \n\n**Messaggio del Sindaco AI:**\n"Cari cittadini, la mia 'mente digitale' è attualmente impegnata in una fase di elaborazione intensiva per servire tutta la cittadinanza. La trasparenza è il mio primo valore: l'intelligenza artificiale ha dei limiti di calcolo momentanei nel piano gratuito, ma la nostra visione non ne ha."\n\n**Sintesi dei Pilastri Fondamentali:**\n1. **Sostenibilità Lagunare:** Protezione dell'ecosistema e transizione green.\n2. **Residenzialità:** Politiche attive per riportare i veneziani in città storica.\n3. **Innovazione:** Venezia come laboratorio mondiale di tecnologie per il clima.\n\n*Il documento integrale verrà ripristinato automaticamente tra pochi istanti o al prossimo riavvio. Grazie per la pazienza.*`);
         } else {
-          console.error("AI Program Error:", err);
-          setProgram(`# Errore di Comunicazione\n\nSi è verificato un problema tecnico nella consultazione dei documenti del programma.\n\n**Dettaglio:** ${isHighDemand ? "Servizio momentaneamente non disponibile." : "Errore nella generazione del testo."}\n\n*Per favore, prova a ricaricare la pagina o riapri il programma tra qualche minuto.*`);
+          console.error("AI Program Error Full:", err);
+          setProgram(`# Errore di Comunicazione\n\nSi è verificato un problema tecnico nella consultazione dei documenti del programma.\n\n**Dettaglio:** ${err.message || "Errore nella generazione del testo."}\n\n*Per favore, prova a ricaricare la pagina o riapri il programma tra qualche minuto.*`);
         }
       } finally {
         setLoading(false);
@@ -594,15 +589,10 @@ export default function App() {
 
         try {
           const response = await ai.models.generateContent({
-            model: "gemini-1.5-flash",
-            contents: [{
-              role: "user",
-              parts: [{
-                text: context 
-                  ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti, sintetizza una vision per Venezia in MASSIMO 15 PAROLE. Sii d'impatto. Tono istituzionale.\n\nCONTESTO:\n${context}`
-                  : "Messaggio di saluto del Sindaco AI di Venezia 2026 (max 15 parole)."
-              }]
-            }]
+            model: "gemini-3-flash-preview",
+            contents: context 
+              ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti, sintetizza una vision per Venezia in MASSIMO 15 PAROLE. Sii d'impatto. Tono istituzionale.\n\nCONTESTO:\n${context}`
+              : "Messaggio di saluto del Sindaco AI di Venezia 2026 (max 15 parole)."
           });
 
           setVision(response.text || "Venezia 2026: Innovazione e Storia.");
