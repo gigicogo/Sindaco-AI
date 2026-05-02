@@ -527,7 +527,7 @@ export default function App() {
           setRepoInfo({ name: contextData.repo, branch: contextData.branch });
         }
         if (Array.isArray(contextData.files)) {
-          setTopics(contextData.files.slice(0, 5));
+          setTopics(contextData.files.slice(0, 8));
         }
 
         try {
