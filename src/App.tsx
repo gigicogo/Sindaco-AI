@@ -29,11 +29,20 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
 
   useEffect(() => {
     const generateProgram = async () => {
+      // 1. Controlla Cache
+      const cached = sessionStorage.getItem("sindaco_program_2026");
+      if (cached) {
+        setProgram(cached);
+        setLoading(false);
+        return;
+      }
+
       if (!GEMINI_KEY) {
         setProgram("ERRORE: Chiave API Gemini non trovata. Configurala nelle impostazioni.");
         setLoading(false);
         return;
       }
+
       setLoading(true);
       try {
         const prompt = githubContext 
@@ -41,8 +50,8 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
              
              REGOLE TASSATIVE:
              1. Basati ESCLUSIVAMENTE sui documenti forniti nel contesto.
-             2. Non menzionare MAI nomi di altri candidati o persone reali (come "Venturini" o altri).
-             3. Identificati SEMPRE e SOLO come il "Sindaco Virtuale AI".
+             2. Non menzionare MAI nomi di altri candidati o persone reali.
+             3. Identificati SEMPRE e SOLO come il "Sindaco AI di Venezia".
              4. Usa un tono istituzionale, visionario e concreto.
              5. Inizia con un'introduzione solenne sui valori della Repubblica Digitale di Venezia.
 
@@ -50,7 +59,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
           : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia (Sostenibilità, Turismo, Tecnologia, Resilienza). Massimo 300 parole.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-flash-latest",
+          model: "gemini-1.5-flash",
           contents: [{ 
             role: "user", 
             parts: [{ 
@@ -59,8 +68,10 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
           }]
         });
 
-        const generatedText = response.text || "Il Sindaco AI sta riflettendo su questa proposta...";
+        const generatedText = response.response.text();
         setProgram(generatedText);
+        // 2. Salva in Cache
+        sessionStorage.setItem("sindaco_program_2026", generatedText);
       } catch (err: any) {
         const errorMsg = err.message || "";
         const isQuotaError = errorMsg.includes("429") || errorMsg.includes("QUOTA") || errorMsg.includes("RESOURCE_EXHAUSTED");
@@ -68,7 +79,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         
         if (isQuotaError || isHighDemand) {
           console.warn("Gemini Service Issue. Using fallback content.");
-          setProgram(`# Programma Elettorale 2026\n\n*Nota: Il servizio di protocollo AI è momentaneamente congestionato a causa dell'alta richiesta.* \n\n**Messaggio del Sindaco Virtuale:**\n"Cari cittadini, la mia 'mente digitale' è attualmente impegnata in una fase di elaborazione intensiva per servire tutta la cittadinanza. La trasparenza è il mio primo valore: l'intelligenza artificiale ha dei limiti di calcolo momentanei, ma la nostra visione non ne ha."\n\n**Sintesi dei Pilastri Fondamentali:**\n1. **Sostenibilità Lagunare:** Protezione dell'ecosistema e transizione green.\n2. **Residenzialità:** Politiche attive per riportare i veneziani in città storica.\n3. **Innovazione:** Venezia come laboratorio mondiale di tecnologie per il clima.\n\n*Il documento integrale verrà ripristinato automaticamente tra pochi istanti. Grazie per la pazienza.*`);
+          setProgram(`# Programma Elettorale 2026\n\n*Nota: Il servizio di protocollo AI è momentaneamente congestionato a causa dell'alta richiesta.* \n\n**Messaggio del Sindaco AI:**\n"Cari cittadini, la mia 'mente digitale' è attualmente impegnata in una fase di elaborazione intensiva per servire tutta la cittadinanza. La trasparenza è il mio primo valore: l'intelligenza artificiale ha dei limiti di calcolo momentanei nel piano gratuito, ma la nostra visione non ne ha."\n\n**Sintesi dei Pilastri Fondamentali:**\n1. **Sostenibilità Lagunare:** Protezione dell'ecosistema e transizione green.\n2. **Residenzialità:** Politiche attive per riportare i veneziani in città storica.\n3. **Innovazione:** Venezia come laboratorio mondiale di tecnologie per il clima.\n\n*Il documento integrale verrà ripristinato automaticamente tra pochi istanti o al prossimo riavvio. Grazie per la pazienza.*`);
         } else {
           console.error("AI Program Error:", err);
           setProgram(`# Errore di Comunicazione\n\nSi è verificato un problema tecnico nella consultazione dei documenti del programma.\n\n**Dettaglio:** ${isHighDemand ? "Servizio momentaneamente non disponibile." : "Errore nella generazione del testo."}\n\n*Per favore, prova a ricaricare la pagina o riapri il programma tra qualche minuto.*`);
@@ -124,7 +135,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
           <div className="flex items-center gap-3">
             <Building2 className="w-8 h-8" />
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-widest">Documento Prodotto dal Sindaco Virtuale AI</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest">Documento Prodotto dal Sindaco AI di Venezia</span>
               <span className="text-[8px] font-medium opacity-60">Basato su Dataset GitHub Elettorale • Venezia 2026</span>
             </div>
           </div>
@@ -543,7 +554,7 @@ export default function App() {
 
         try {
           const response = await ai.models.generateContent({
-            model: "gemini-flash-latest",
+            model: "gemini-1.5-flash",
             contents: [{
               role: "user",
               parts: [{
@@ -554,7 +565,7 @@ export default function App() {
             }]
           });
 
-          setVision(response.text || "Venezia 2026: Innovazione e Storia.");
+          setVision(response.response.text() || "Venezia 2026: Innovazione e Storia.");
 
         } catch (aiErr: any) {
           const aiErrorMsg = aiErr.message || "";
