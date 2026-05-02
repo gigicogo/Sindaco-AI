@@ -74,13 +74,36 @@ app.get("/api/github-files", async (req, res) => {
         !f.path.includes("feedback_cittadini.md") &&
         !f.path.toLowerCase().endsWith("readme.md")
       )
-      .map((f: any) => ({
-        name: f.path.split("/").pop(),
-        path: f.path,
-        sha: f.sha,
-        html_url: `https://github.com/${GITHUB_OWNER}/${repo}/blob/${branch}/${f.path}`
-      }))
-      .reverse(); 
+      .map((f: any) => {
+        const name = f.path.split("/").pop() || "";
+        const dateMatch1 = name.match(/(\d{4}-\d{2}-\d{2})/);
+        const dateMatch2 = name.match(/(\d{4})\s+(\w+)\s+(\d{2})/);
+        
+        let sortDate = "0000-00-00";
+        if (dateMatch1) {
+          sortDate = dateMatch1[1];
+        } else if (dateMatch2) {
+          const months: any = { 
+            "gennaio": "01", "febbraio": "02", "marzo": "03", "aprile": "04", 
+            "maggio": "05", "giugno": "06", "luglio": "07", "agosto": "08", 
+            "settembre": "09", "ottobre": "10", "novembre": "11", "dicembre": "12" 
+          };
+          const month = months[dateMatch2[2].toLowerCase()] || "00";
+          sortDate = `${dateMatch2[1]}-${month}-${dateMatch2[3].padStart(2, '0')}`;
+        }
+
+        return {
+          name,
+          path: f.path,
+          sha: f.sha,
+          sortDate,
+          html_url: `https://github.com/${GITHUB_OWNER}/${repo}/blob/${branch}/${f.path}`
+        };
+      })
+      .sort((a: any, b: any) => {
+        if (b.sortDate !== a.sortDate) return b.sortDate.localeCompare(a.sortDate);
+        return b.name.localeCompare(a.name);
+      }); 
 
     res.json(files);
   } catch (error: any) {
@@ -95,13 +118,40 @@ app.get("/api/github-context", async (req, res) => {
     const { res: treeRes, repo, branch } = await fetchWithRetry("git/trees/{branch}?recursive=1");
     const treeData = await treeRes.json();
     
-    const mdFiles = (treeData.tree || []).filter((f: any) => 
-      f.type === "blob" && 
-      (f.path.endsWith(".md") || f.path.endsWith(".txt")) &&
-      !f.path.includes("feedback_cittadini.md") &&
-      !f.path.includes("node_modules") &&
-      !f.path.toLowerCase().endsWith("readme.md")
-    );
+    const mdFiles = (treeData.tree || [])
+      .filter((f: any) => 
+        f.type === "blob" && 
+        (f.path.endsWith(".md") || f.path.endsWith(".txt")) &&
+        !f.path.includes("feedback_cittadini.md") &&
+        !f.path.includes("node_modules") &&
+        !f.path.toLowerCase().endsWith("readme.md")
+      )
+      .map((f: any) => {
+        const pathParts = f.path.split("/");
+        const name = pathParts.pop() || "";
+        
+        const dateMatch1 = name.match(/(\d{4}-\d{2}-\d{2})/);
+        const dateMatch2 = name.match(/(\d{4})\s+(\w+)\s+(\d{2})/);
+        
+        let sortDate = "0000-00-00";
+        if (dateMatch1) {
+          sortDate = dateMatch1[1];
+        } else if (dateMatch2) {
+          const months: any = { 
+            "gennaio": "01", "febbraio": "02", "marzo": "03", "aprile": "04", 
+            "maggio": "05", "giugno": "06", "luglio": "07", "agosto": "08", 
+            "settembre": "09", "ottobre": "10", "novembre": "11", "dicembre": "12" 
+          };
+          const month = months[dateMatch2[2].toLowerCase()] || "00";
+          sortDate = `${dateMatch2[1]}-${month}-${dateMatch2[3].padStart(2, '0')}`;
+        }
+
+        return { ...f, name, sortDate };
+      })
+      .sort((a: any, b: any) => {
+        if (b.sortDate !== a.sortDate) return b.sortDate.localeCompare(a.sortDate);
+        return b.name.localeCompare(a.name);
+      });
     
     const contents = await Promise.all(mdFiles.map(async (file: any) => {
       try {
@@ -117,18 +167,18 @@ app.get("/api/github-context", async (req, res) => {
     }));
 
     const filesList = mdFiles.map((f: any) => ({
-      name: f.path.split("/").pop(),
+      name: f.name,
       path: f.path,
       sha: f.sha,
       html_url: `https://github.com/${GITHUB_OWNER}/${repo}/blob/${branch}/${f.path}`
-    })).reverse();
+    }));
 
     res.json({ 
       context: contents.filter(c => c !== "").join("\n\n"),
       fileCount: mdFiles.length,
       repo: repo,
       branch: branch,
-      files: filesList // Return all for the UI
+      files: filesList 
     });
   } catch (error: any) {
     console.error("Context generation error:", error);
