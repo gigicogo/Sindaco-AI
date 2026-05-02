@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
@@ -9,6 +10,13 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Initialize Gemini on server
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
+let genAI: any = null;
+if (GEMINI_API_KEY) {
+  genAI = new GoogleGenAI(GEMINI_API_KEY);
+}
 
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -254,6 +262,26 @@ app.post("/api/feedback", async (req, res) => {
     else res.status(400).json({ error: "GitHub update failed", status: updateRes.status });
   } catch (error) { 
     res.status(500).json({ error: "Server error" }); 
+  }
+});
+
+// AI Generation Endpoint
+app.post("/api/ai-generate", async (req, res) => {
+  const { prompt, visionMode } = req.body;
+
+  if (!genAI) {
+    return res.status(500).json({ error: "AI Service not initialized on server. Check env variables." });
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: visionMode ? "gemini-1.5-flash" : "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    res.json({ text });
+  } catch (error: any) {
+    console.error("AI Error on server:", error);
+    res.status(500).json({ error: error.message || "AI Generation failed" });
   }
 });
 

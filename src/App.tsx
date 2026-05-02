@@ -15,24 +15,8 @@ import {
   Globe
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { GoogleGenAI } from "@google/genai";
 
-// Initialization of Gemini (Frontend)
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
-
-// Initialize Gemini with the correct structure
-let genAI: any = null;
-if (GEMINI_KEY && GEMINI_KEY.length > 5) {
-  try {
-    genAI = new GoogleGenAI(GEMINI_KEY);
-  } catch (e) {
-    console.error("Gemini initialization failed:", e);
-  }
-}
-
-if (!GEMINI_KEY && typeof window !== 'undefined' && !window.location.hostname.includes('run.app')) {
-  console.warn("VITE_GEMINI_API_KEY is missing. AI features will be disabled on this host (Vercel/External).");
-}
+// AI calls moved to server-side (/api/ai-generate) to protect API keys and ensure robustness on Vercel.
 
 // --- Components ---
 
@@ -50,15 +34,8 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         return;
       }
 
-      if (!GEMINI_KEY || !genAI) {
-        setProgram("ERRORE: Chiave API Gemini non configurata correttamente.\n\n**Se stai visualizzando l'anteprima in AI Studio:**\nIl sistema dovrebbe riconoscerla automaticamente. Prova a ricaricare.\n\n**Se sei su Vercel:**\n1. Assicurati di aver aggiunto `VITE_GEMINI_API_KEY` nelle environment variables.\n2. Esegui un 'Redeploy' per rendere effettive le modifiche.");
-        setLoading(false);
-        return;
-      }
-
       setLoading(true);
       try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const prompt = githubContext 
           ? `Sei il Sindaco AI di Venezia 2026. Genera un programma elettorale strutturato e dettagliato in italiano, suddiviso in punti chiari (Markdown). 
              
@@ -72,10 +49,19 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
              CONTESTO DOCUMENTI:\n\n${githubContext}`
           : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia (Sostenibilità, Turismo, Tecnologia, Resilienza). Massimo 300 parole.`;
 
-        const response = await model.generateContent({
-          contents: [{ role: "user", parts: [{ text: prompt }] }]
+        const aiRes = await fetch("/api/ai-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt })
         });
-        const generatedText = response.response.text() || "Il Sindaco AI sta riflettendo su questa proposta...";
+
+        if (!aiRes.ok) {
+          const errData = await aiRes.json().catch(() => ({}));
+          throw new Error(errData.error || "Errore del servizio AI.");
+        }
+
+        const data = await aiRes.json();
+        const generatedText = data.text || "Il Sindaco AI sta riflettendo su questa proposta...";
         setProgram(generatedText);
         // 2. Salva in Cache
         sessionStorage.setItem("sindaco_program_2026", generatedText);
@@ -536,22 +522,14 @@ export default function App() {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!GEMINI_KEY) {
-        setError("Chiave API Gemini mancante nelle impostazioni.");
-      }
       setVisionLoading(true);
       setError(null);
       try {
         const contextRes = await fetch("/api/github-context");
         
         if (!contextRes.ok) {
-          // If the API itself fails (e.g. 404 or 500)
-          const healthRes = await fetch("/api/health").catch(() => null);
-          if (!healthRes || !healthRes.ok) {
-            setError("Server non raggiungibile (API Offline). Verifica la configurazione su Vercel.");
-          } else {
-            setError(`Errore Server: ${contextRes.status}. Controlla i token.`);
-          }
+          // If the API itself fails
+          setError("Server non raggiungibile (API Offline). Verifica la configurazione su Vercel.");
           setVision("Connessione in corso...");
           setVisionLoading(false);
           setLoading(false);
@@ -578,27 +556,24 @@ export default function App() {
           setTopics(contextData.files.slice(0, 8));
         }
 
-        if (!genAI) {
-          console.warn("AI initialization failed or key missing. Using static vision.");
-          setVision("Venezia 2026: L'armonia tra storia millenaria e futuro tecnologico.");
-          setVisionLoading(false);
-          setLoading(false);
-          return;
-        }
-
         try {
-          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
           const prompt = context 
             ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti, sintetizza una vision per Venezia in MASSIMO 15 PAROLE. Sii d'impatto. Tono istituzionale.\n\nCONTESTO:\n${context}`
             : "Messaggio di saluto del Sindaco AI di Venezia 2026 (max 15 parole).";
 
-          const result = await model.generateContent({
-             contents: [{ role: "user", parts: [{ text: prompt }] }]
+          const aiRes = await fetch("/api/ai-generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt, visionMode: true })
           });
-          setVision(result.response.text() || "Venezia 2026: Innovazione e Storia.");
+
+          if (!aiRes.ok) throw new Error("Vision generation failed");
+
+          const data = await aiRes.json();
+          setVision(data.text || "Venezia 2026: Innovazione e Storia.");
 
         } catch (aiErr: any) {
-          const aiErrorMsg = aiErr.message || "";
+          const aiErrorMsg = (aiErr.message || "").toUpperCase();
           const isQuota = aiErrorMsg.includes("429") || aiErrorMsg.includes("RESOURCE_EXHAUSTED") || aiErrorMsg.includes("QUOTA");
           
           if (isQuota) {
