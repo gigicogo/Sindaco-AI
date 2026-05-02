@@ -50,7 +50,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
           : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia (Sostenibilità, Turismo, Tecnologia, Resilienza). Massimo 300 parole.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-flash-latest",
           contents: [{ 
             role: "user", 
             parts: [{ 
@@ -93,7 +93,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
 
         <div className="mb-12 border-b-2 border-venice-dark pb-8">
           <h2 className="text-[10px] font-bold tracking-[0.3em] uppercase text-venice-red mb-2">Repubblica Digitale di Venezia</h2>
-          <h1 className="text-4xl md:text-6xl font-serif italic text-venice-dark leading-none">Programma Politico <br/> Sindaco Virtuale 2026</h1>
+          <h1 className="text-4xl md:text-6xl font-serif italic text-venice-dark leading-none">Programma Politico <br/> Sindaco AI di Venezia</h1>
         </div>
 
         {loading ? (
@@ -104,8 +104,19 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
             <div className="h-32 bg-venice-dark/5 w-full mt-12"></div>
           </div>
         ) : (
-          <div className="markdown-body text-venice-dark selection:bg-venice-red selection:text-white">
-            <ReactMarkdown>{program}</ReactMarkdown>
+          <div className="space-y-8">
+            <div className="markdown-body text-venice-dark selection:bg-venice-red selection:text-white">
+              <ReactMarkdown>{program}</ReactMarkdown>
+            </div>
+            
+            {program.includes("Errore") && (
+              <button 
+                onClick={() => window.location.reload()}
+                className="mt-8 px-6 py-3 bg-venice-red text-white text-[10px] font-bold uppercase tracking-widest hover:bg-venice-dark transition-all"
+              >
+                Ricarica e Riprova
+              </button>
+            )}
           </div>
         )}
         
@@ -130,7 +141,7 @@ const Header = ({ onOpenProgram }: { onOpenProgram: () => void }) => {
       <div className="flex items-center gap-4">
         <div>
           <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-venice-red">Repubblica Digitale di Venezia</h2>
-          <h1 className="text-2xl font-serif italic text-venice-dark">Sindaco Virtuale AI</h1>
+          <h1 className="text-2xl font-serif italic text-venice-dark">Sindaco AI di Venezia</h1>
         </div>
       </div>
       
@@ -532,7 +543,7 @@ export default function App() {
 
         try {
           const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-flash-latest",
             contents: [{
               role: "user",
               parts: [{
