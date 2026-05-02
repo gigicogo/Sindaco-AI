@@ -1,12 +1,17 @@
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Initialize Gemini for Vercel
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
 
 const GITHUB_OWNER = "gigicogo";
 const GITHUB_REPO = "Elezioni-Venezia-2026";
@@ -208,6 +213,32 @@ app.post("/api/feedback", async (req, res) => {
     });
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: "Server error" }); }
+});
+
+// AI Generation Endpoint for Vercel
+app.post("/api/ai-generate", async (req, res) => {
+  const { prompt } = req.body;
+
+  if (!ai) {
+    console.error("AI Key missing on Vercel environment");
+    return res.status(500).json({ error: "Servizio AI non inizializzato. Controlla GEMINI_API_KEY su Vercel." });
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt
+    });
+    
+    if (!response || !response.text) {
+      throw new Error("Risposta vuota dal modello.");
+    }
+
+    res.json({ text: response.text });
+  } catch (error: any) {
+    console.error("Gemini Error on Vercel:", error);
+    res.status(500).json({ error: error.message || "Generazione AI fallita" });
+  }
 });
 
 export default app;
