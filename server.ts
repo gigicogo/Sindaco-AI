@@ -12,10 +12,6 @@ const PORT = 3000;
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Initialize Gemini on server
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
-
 // --- API Routes ---
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -261,31 +257,6 @@ app.post("/api/feedback", async (req, res) => {
     else res.status(400).json({ error: "GitHub update failed", status: updateRes.status });
   } catch (error) { 
     res.status(500).json({ error: "Server error" }); 
-  }
-});
-
-// AI Generation Endpoint for Local Dev
-app.post("/api/ai-generate", async (req, res) => {
-  const { prompt } = req.body;
-
-  if (!ai) {
-    return res.status(500).json({ error: "AI Service not initialized. Check GEMINI_API_KEY." });
-  }
-
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt
-    });
-    
-    if (!response || !response.text) {
-      throw new Error("Empty response from AI.");
-    }
-
-    res.json({ text: response.text });
-  } catch (error: any) {
-    console.error("Gemini Error on server:", error);
-    res.status(500).json({ error: error.message || "AI Generation failed" });
   }
 });
 
