@@ -70,9 +70,13 @@ app.get("/api/github-files", async (req, res) => {
         if (dateMatch1) {
           sortDate = dateMatch1[1];
         } else if (dateMatch2) {
-          const months: any = { "gennaio": "01", "aprile": "04", "maggio": "05" }; // Short list for brevity
+          const months: any = { 
+            "gennaio": "01", "febbraio": "02", "marzo": "03", "aprile": "04", 
+            "maggio": "05", "giugno": "06", "luglio": "07", "agosto": "08", 
+            "settembre": "09", "ottobre": "10", "novembre": "11", "dicembre": "12" 
+          };
           const month = months[dateMatch2[2].toLowerCase()] || "00";
-          sortDate = `${dateMatch2[1]}-${month}-${dateMatch2[3].padStart(2, '0')}`;
+          sortDate = `${dateMatch2[1]}-${month}-${dateMatch2[3].padStart(2, "0")}`;
         }
 
         return {
