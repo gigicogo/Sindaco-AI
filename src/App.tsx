@@ -64,13 +64,14 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
       } catch (err: any) {
         const errorMsg = err.message || "";
         const isQuotaError = errorMsg.includes("429") || errorMsg.includes("QUOTA") || errorMsg.includes("RESOURCE_EXHAUSTED");
+        const isHighDemand = errorMsg.includes("503") || errorMsg.includes("UNAVAILABLE") || errorMsg.includes("high demand");
         
-        if (isQuotaError) {
-          console.warn("Gemini Quota Exceeded in ProgramPage. Using fallback content.");
-          setProgram("# Programma Elettorale 2026\n\n*Nota: Il servizio AI è temporaneamente in coda (Free Tier). Di seguito i punti cardine estratti dalla memoria cache.*\n\n**Pilastri della Visione Virtuale:**\n1. **Sostenibilità Totale:** Transizione energetica della flotta nautica e tutela della laguna.\n2. **Venezia ai Veneziani:** Incentivi alla residenzialità e limiti massimi alle locazioni turistiche.\n3. **Cultura Aumentata:** Trasformazione di Venezia nel primo polo mondiale di arte digitale e AR/VR.\n4. **Sicurezza Predittiva:** Gestione intelligente dei flussi e protezione idraulica avanzata.\n\n*Riprova tra poco per il documento integrale generato dai tuoi documenti GitHub.*");
+        if (isQuotaError || isHighDemand) {
+          console.warn("Gemini Service Issue. Using fallback content.");
+          setProgram(`# Programma Elettorale 2026\n\n*Nota: Il servizio di protocollo AI è momentaneamente congestionato a causa dell'alta richiesta.* \n\n**Messaggio del Sindaco Virtuale:**\n"Cari cittadini, la mia 'mente digitale' è attualmente impegnata in una fase di elaborazione intensiva per servire tutta la cittadinanza. La trasparenza è il mio primo valore: l'intelligenza artificiale ha dei limiti di calcolo momentanei, ma la nostra visione non ne ha."\n\n**Sintesi dei Pilastri Fondamentali:**\n1. **Sostenibilità Lagunare:** Protezione dell'ecosistema e transizione green.\n2. **Residenzialità:** Politiche attive per riportare i veneziani in città storica.\n3. **Innovazione:** Venezia come laboratorio mondiale di tecnologie per il clima.\n\n*Il documento integrale verrà ripristinato automaticamente tra pochi istanti. Grazie per la pazienza.*`);
         } else {
           console.error("AI Program Error:", err);
-          setProgram(`Errore nella generazione del programma: ${err.message || 'Errore sconosciuto'}.`);
+          setProgram(`# Errore di Comunicazione\n\nSi è verificato un problema tecnico nella consultazione dei documenti del programma.\n\n**Dettaglio:** ${isHighDemand ? "Servizio momentaneamente non disponibile." : "Errore nella generazione del testo."}\n\n*Per favore, prova a ricaricare la pagina o riapri il programma tra qualche minuto.*`);
         }
       } finally {
         setLoading(false);
