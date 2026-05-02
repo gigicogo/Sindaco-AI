@@ -59,7 +59,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
           : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia (Sostenibilità, Turismo, Tecnologia, Resilienza). Massimo 300 parole.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-1.5-flash",
+          model: "gemini-3-flash-preview",
           contents: [{ 
             role: "user", 
             parts: [{ 
@@ -68,7 +68,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
           }]
         });
 
-        const generatedText = response.response.text();
+        const generatedText = response.text || "Il Sindaco AI sta riflettendo su questa proposta...";
         setProgram(generatedText);
         // 2. Salva in Cache
         sessionStorage.setItem("sindaco_program_2026", generatedText);
@@ -554,7 +554,7 @@ export default function App() {
 
         try {
           const response = await ai.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-3-flash-preview",
             contents: [{
               role: "user",
               parts: [{
@@ -565,7 +565,7 @@ export default function App() {
             }]
           });
 
-          setVision(response.response.text() || "Venezia 2026: Innovazione e Storia.");
+          setVision(response.text || "Venezia 2026: Innovazione e Storia.");
 
         } catch (aiErr: any) {
           const aiErrorMsg = aiErr.message || "";
