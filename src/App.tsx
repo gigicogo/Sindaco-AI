@@ -72,9 +72,10 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
              CONTESTO DOCUMENTI:\n\n${githubContext}`
           : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia (Sostenibilità, Turismo, Tecnologia, Resilienza). Massimo 300 parole.`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const generatedText = response.text() || "Il Sindaco AI sta riflettendo su questa proposta...";
+        const response = await model.generateContent({
+          contents: [{ role: "user", parts: [{ text: prompt }] }]
+        });
+        const generatedText = response.response.text() || "Il Sindaco AI sta riflettendo su questa proposta...";
         setProgram(generatedText);
         // 2. Salva in Cache
         sessionStorage.setItem("sindaco_program_2026", generatedText);
@@ -591,9 +592,10 @@ export default function App() {
             ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti, sintetizza una vision per Venezia in MASSIMO 15 PAROLE. Sii d'impatto. Tono istituzionale.\n\nCONTESTO:\n${context}`
             : "Messaggio di saluto del Sindaco AI di Venezia 2026 (max 15 parole).";
 
-          const result = await model.generateContent(prompt);
-          const response = await result.response;
-          setVision(response.text() || "Venezia 2026: Innovazione e Storia.");
+          const result = await model.generateContent({
+             contents: [{ role: "user", parts: [{ text: prompt }] }]
+          });
+          setVision(result.response.text() || "Venezia 2026: Innovazione e Storia.");
 
         } catch (aiErr: any) {
           const aiErrorMsg = aiErr.message || "";
