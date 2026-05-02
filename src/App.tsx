@@ -19,9 +19,19 @@ import { GoogleGenAI } from "@google/genai";
 
 // Initialization of Gemini (Frontend)
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : "");
-const ai = new GoogleGenAI(GEMINI_KEY);
+
+// Prevent crash if key is missing or invalid
+let ai: any = null;
+if (GEMINI_KEY && GEMINI_KEY.trim() !== "") {
+  try {
+    ai = new GoogleGenAI(GEMINI_KEY);
+  } catch (e) {
+    console.error("Gemini initialization failed:", e);
+  }
+}
+
 if (!GEMINI_KEY && typeof window !== 'undefined' && !window.location.hostname.includes('run.app')) {
-  console.error("VITE_GEMINI_API_KEY is missing. Please add it to your environment variables.");
+  console.warn("VITE_GEMINI_API_KEY is missing. AI features will be disabled on this host (Vercel/External).");
 }
 
 // --- Components ---
@@ -40,8 +50,8 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         return;
       }
 
-      if (!GEMINI_KEY) {
-        setProgram("ERRORE: Chiave API Gemini non configurata.\n\nSe sei su Vercel, aggiungi la variabile d'ambiente `VITE_GEMINI_API_KEY` nel pannello di controllo del progetto.");
+      if (!GEMINI_KEY || !ai) {
+        setProgram("ERRORE: Chiave API Gemini non configurata correttamente.\n\nSe stai visualizzando l'app su Vercel, assicurati di aver aggiunto la variabile d'ambiente `VITE_GEMINI_API_KEY` nelle impostazioni del progetto.");
         setLoading(false);
         return;
       }
@@ -572,6 +582,14 @@ export default function App() {
         }
         if (Array.isArray(contextData.files)) {
           setTopics(contextData.files.slice(0, 8));
+        }
+
+        if (!ai) {
+          console.warn("AI initialization failed or key missing. Using static vision.");
+          setVision("Venezia 2026: L'armonia tra storia millenaria e futuro tecnologico.");
+          setVisionLoading(false);
+          setLoading(false);
+          return;
         }
 
         try {
