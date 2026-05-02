@@ -51,7 +51,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
       }
 
       if (!GEMINI_KEY || !ai) {
-        setProgram("ERRORE: Chiave API Gemini non configurata correttamente.\n\nSe stai visualizzando l'app su Vercel, assicurati di aver aggiunto la variabile d'ambiente `VITE_GEMINI_API_KEY` nelle impostazioni del progetto.");
+        setProgram("ERRORE: Chiave API Gemini non configurata correttamente.\n\nSe stai visualizzando l'app su Vercel:\n1. Aggiungi `VITE_GEMINI_API_KEY` nelle impostazioni del progetto.\n2. Esegui un NUOVO DEPLOY (Redeploy) per applicare le modifiche.");
         setLoading(false);
         return;
       }
