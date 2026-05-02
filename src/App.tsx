@@ -18,13 +18,13 @@ import ReactMarkdown from 'react-markdown';
 import { GoogleGenAI } from "@google/genai";
 
 // Initialization of Gemini (Frontend)
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : "") || "";
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
 // Initialize Gemini with the correct structure
-let ai: any = null;
+let genAI: any = null;
 if (GEMINI_KEY && GEMINI_KEY.length > 5) {
   try {
-    ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
+    genAI = new GoogleGenAI(GEMINI_KEY);
   } catch (e) {
     console.error("Gemini initialization failed:", e);
   }
@@ -50,7 +50,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         return;
       }
 
-      if (!GEMINI_KEY || !ai) {
+      if (!GEMINI_KEY || !genAI) {
         setProgram("ERRORE: Chiave API Gemini non configurata correttamente.\n\n**Se stai visualizzando l'anteprima in AI Studio:**\nIl sistema dovrebbe riconoscerla automaticamente. Prova a ricaricare.\n\n**Se sei su Vercel:**\n1. Assicurati di aver aggiunto `VITE_GEMINI_API_KEY` nelle environment variables.\n2. Esegui un 'Redeploy' per rendere effettive le modifiche.");
         setLoading(false);
         return;
@@ -58,6 +58,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
 
       setLoading(true);
       try {
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const prompt = githubContext 
           ? `Sei il Sindaco AI di Venezia 2026. Genera un programma elettorale strutturato e dettagliato in italiano, suddiviso in punti chiari (Markdown). 
              
@@ -71,12 +72,9 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
              CONTESTO DOCUMENTI:\n\n${githubContext}`
           : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia (Sostenibilità, Turismo, Tecnologia, Resilienza). Massimo 300 parole.`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: prompt
-        });
-
-        const generatedText = response.text || "Il Sindaco AI sta riflettendo su questa proposta...";
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const generatedText = response.text() || "Il Sindaco AI sta riflettendo su questa proposta...";
         setProgram(generatedText);
         // 2. Salva in Cache
         sessionStorage.setItem("sindaco_program_2026", generatedText);
@@ -579,7 +577,7 @@ export default function App() {
           setTopics(contextData.files.slice(0, 8));
         }
 
-        if (!ai) {
+        if (!genAI) {
           console.warn("AI initialization failed or key missing. Using static vision.");
           setVision("Venezia 2026: L'armonia tra storia millenaria e futuro tecnologico.");
           setVisionLoading(false);
@@ -588,14 +586,14 @@ export default function App() {
         }
 
         try {
-          const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: context 
-              ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti, sintetizza una vision per Venezia in MASSIMO 15 PAROLE. Sii d'impatto. Tono istituzionale.\n\nCONTESTO:\n${context}`
-              : "Messaggio di saluto del Sindaco AI di Venezia 2026 (max 15 parole)."
-          });
+          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+          const prompt = context 
+            ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti, sintetizza una vision per Venezia in MASSIMO 15 PAROLE. Sii d'impatto. Tono istituzionale.\n\nCONTESTO:\n${context}`
+            : "Messaggio di saluto del Sindaco AI di Venezia 2026 (max 15 parole).";
 
-          setVision(response.text || "Venezia 2026: Innovazione e Storia.");
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          setVision(response.text() || "Venezia 2026: Innovazione e Storia.");
 
         } catch (aiErr: any) {
           const aiErrorMsg = aiErr.message || "";
