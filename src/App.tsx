@@ -20,12 +20,11 @@ import { GoogleGenAI } from "@google/genai";
 // Initialization of Gemini (Frontend)
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : "") || "";
 
-// Prevent crash if key is missing or invalid
+// Initialize Gemini with the correct structure
 let ai: any = null;
 if (GEMINI_KEY && GEMINI_KEY.length > 5) {
   try {
-    // Correct initialization for @google/genai
-    ai = new GoogleGenAI(GEMINI_KEY);
+    ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
   } catch (e) {
     console.error("Gemini initialization failed:", e);
   }
@@ -73,13 +72,8 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
           : `Sei il Sindaco AI di Venezia 2026. Non abbiamo ancora accesso ai tuoi documenti di programma su GitHub. Scrivi un manifesto introduttivo basato sulla tua visione generale di Venezia (Sostenibilità, Turismo, Tecnologia, Resilienza). Massimo 300 parole.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-1.5-flash",
-          contents: [{ 
-            role: "user", 
-            parts: [{ 
-              text: prompt
-            }] 
-          }]
+          model: "gemini-3-flash-preview",
+          contents: prompt
         });
 
         const generatedText = response.text || "Il Sindaco AI sta riflettendo su questa proposta...";
@@ -595,15 +589,10 @@ export default function App() {
 
         try {
           const response = await ai.models.generateContent({
-            model: "gemini-1.5-flash",
-            contents: [{
-              role: "user",
-              parts: [{
-                text: context 
-                  ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti, sintetizza una vision per Venezia in MASSIMO 15 PAROLE. Sii d'impatto. Tono istituzionale.\n\nCONTESTO:\n${context}`
-                  : "Messaggio di saluto del Sindaco AI di Venezia 2026 (max 15 parole)."
-              }]
-            }]
+            model: "gemini-3-flash-preview",
+            contents: context 
+              ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti, sintetizza una vision per Venezia in MASSIMO 15 PAROLE. Sii d'impatto. Tono istituzionale.\n\nCONTESTO:\n${context}`
+              : "Messaggio di saluto del Sindaco AI di Venezia 2026 (max 15 parole)."
           });
 
           setVision(response.text || "Venezia 2026: Innovazione e Storia.");
