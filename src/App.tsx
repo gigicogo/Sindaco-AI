@@ -567,7 +567,10 @@ export default function App() {
             body: JSON.stringify({ prompt, visionMode: true })
           });
 
-          if (!aiRes.ok) throw new Error("Vision generation failed");
+          if (!aiRes.ok) {
+            const errData = await aiRes.json().catch(() => ({}));
+            throw new Error(errData.error || "Vision generation failed");
+          }
 
           const data = await aiRes.json();
           setVision(data.text || "Venezia 2026: Innovazione e Storia.");
