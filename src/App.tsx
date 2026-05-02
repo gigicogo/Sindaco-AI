@@ -1,40 +1,296 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Building2, 
-  MessageSquare, 
-  Lightbulb, 
-  FileText, 
-  ArrowRight, 
-  Send, 
-  CheckCircle2, 
-  Info,
-  Menu,
-  X,
-  ChevronRight,
-  Globe
+import React, { useState, useEffect } from 'react';
+import {
+  Building2,
+  FileText,
+  ArrowRight,
+  X
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { GoogleGenAI } from "@google/genai";
 
-// Initialize Gemini on the frontend as per system guidelines.
-const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
-const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
+const STATIC_PROGRAM = `# Programma del Sindaco AI di Venezia 2026
 
-// --- Components ---
+## 1. Città viva e abitata
+- Politiche per riportare i residenti in centro storico e nelle isole.
+- Uso mirato del patrimonio pubblico per alloggi a canone sostenibile.
+- Servizi di prossimità nei quartieri, scuole e presidi sanitari accessibili.
 
-const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubContext: string }) => {
+## 2. Lavoro e turismo sostenibile
+- Regole chiare per il turismo giornaliero e gli affitti turistici.
+- Valorizzazione del lavoro artigiano e delle filiere culturali.
+- Bilanciamento tra diritto alla città dei residenti e accoglienza dei visitatori.
+
+## 3. Clima e sicurezza della città d’acqua
+- Manutenzione programmata di canali, rive e fondamenta.
+- Monitoraggio trasparente degli effetti del MOSE e delle opere idrauliche.
+- Piani di adattamento climatico condivisi con cittadini e imprese.
+
+## 4. Mobilità e qualità della vita
+- Potenziamento del trasporto pubblico lagunare e di terraferma.
+- Città più sicura per pedoni e ciclisti, meno traffico inutile.
+- Cura degli spazi pubblici, illuminazione e verde urbano.
+
+## 5. Venezia digitale e trasparente
+- Dati aperti sulle decisioni e sulle spese del Comune.
+- Servizi pubblici digitali semplici, accessibili e multilingue.
+- Intelligenza artificiale al servizio della partecipazione dei cittadini, non al posto loro.
+
+## 6. Metodo di governo
+- Ascolto continuo dei cittadini tramite raccolta pubblica di proposte e segnalazioni.
+- Decisioni motivate sulla base di documenti, dati e confronto civico.
+- Un Comune che comunica con chiarezza, tempi certi e trasparenza.
+
+---
+
+*Questo programma è una sintesi editoriale basata sui documenti raccolti nel progetto “Elezioni-Venezia-2026” su GitHub.*`;
+
+const STATIC_VISION = `Venezia 2026: una città più abitabile, trasparente e capace di unire storia e futuro.`;
+
+const ProgramPage = ({ onBack }: { onBack: () => void }) => {
   const [program, setProgram] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const generateProgram = async () => {
-      // 1. Controlla Cache
-      const cached = sessionStorage.getItem("sindaco_program_2026");
-      if (cached) {
-        setProgram(cached);
+    const loadProgram = async () => {
+      setLoading(true);
+      try {
+        setProgram(STATIC_PROGRAM);
+      } catch (err: any) {
+        setProgram(`# Errore di caricamento
+
+Non è stato possibile mostrare il programma.
+
+**Dettaglio:** ${err?.message || "Errore sconosciuto"}`);
+      } finally {
         setLoading(false);
-        return;
+      }
+    };
+
+    loadProgram();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-venice-cream p-4 md:p-12 overflow-auto">
+      <div className="max-w-4xl mx-auto bg-white border-[8px] md:border-[16px] border-venice-dark p-8 md:p-16 shadow-2xl relative">
+        <button
+          onClick={onBack}
+          className="absolute top-4 right-4 md:top-8 md:right-8 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-venice-red hover:bg-venice-red hover:text-white px-3 py-1 transition-all border border-venice-red"
+        >
+          Chiudi <X className="w-3 h-3" />
+        </button>
+
+        <div className="mb-12 border-b-2 border-venice-dark pb-8">
+          <h2 className="text-[10px] font-bold tracking-[0.3em] uppercase text-venice-red mb-2">
+            Repubblica Digitale di Venezia
+          </h2>
+          <h1 className="text-4xl md:text-6xl font-serif italic text-venice-dark leading-none">
+            Programma Politico <br /> Sindaco AI di Venezia
+          </h1>
+        </div>
+
+        {loading ? (
+          <div className="space-y-6 animate-pulse">
+            <div className="h-4 bg-venice-dark/5 w-full"></div>
+            <div className="h-4 bg-venice-dark/5 w-5/6"></div>
+            <div className="h-4 bg-venice-dark/5 w-4/6"></div>
+            <div className="h-32 bg-venice-dark/5 w-full mt-12"></div>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            <div className="markdown-body text-venice-dark selection:bg-venice-red selection:text-white">
+              <ReactMarkdown>{program}</ReactMarkdown>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-20 pt-8 border-t border-venice-dark/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-50">
+          <div className="flex items-center gap-3">
+            <Building2 className="w-8 h-8" />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-widest">
+                Documento Prodotto dal Sindaco AI di Venezia
+              </span>
+              <span className="text-[8px] font-medium opacity-60">
+                Basato su Dataset GitHub Elettorale • Venezia 2026
+              </span>
+            </div>
+          </div>
+          <span className="text-[9px] font-bold uppercase tracking-widest border border-venice-dark px-2 py-1 italic">
+            Copia Ufficiale per la Cittadinanza
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Header = ({ onOpenProgram }: { onOpenProgram: () => void }) => {
+  return (
+    <header className="flex flex-col md:flex-row justify-between items-start md:items-center px-6 md:px-10 py-8 border-b border-venice-red/20 bg-white">
+      <div className="flex items-center gap-4">
+        <div>
+          <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-venice-red">
+            Repubblica Digitale di Venezia
+          </h2>
+          <h1 className="text-2xl font-serif italic text-venice-dark">
+            Sindaco AI di Venezia
+          </h1>
+        </div>
+      </div>
+
+      <div className="flex gap-4 items-center mt-6 md:mt-0">
+        <button
+          onClick={onOpenProgram}
+          className="bg-venice-red text-white px-6 py-3 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-venice-dark transition-all shadow-lg hover:shadow-venice-red/20 active:scale-95 flex items-center gap-3 group"
+        >
+          <FileText className="w-4 h-4" />
+          Il Mio Programma
+          <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+        </button>
+
+        <div className="hidden lg:flex items-center gap-2 border-l border-venice-red/10 pl-6 ml-2">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+            <span className="text-[9px] uppercase font-bold tracking-widest opacity-60">
+              Live Repository
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+const VisionSection = ({
+  onOpenProgram,
+  vision,
+  visionLoading,
+  topics,
+  fileCount,
+  error,
+  repoInfo
+}: {
+  onOpenProgram: () => void,
+  vision: string,
+  visionLoading: boolean,
+  topics: any[],
+  fileCount: number,
+  error: string | null,
+  repoInfo: any
+}) => {
+  return (
+    <div className="p-8 md:p-12 flex flex-col justify-center border-b md:border-b-0 md:border-r border-venice-red/10 bg-white/40">
+      <div className="mb-6 flex justify-between items-center">
+        <div className="flex flex-col">
+          <span className="bg-venice-red text-white px-2 py-1 text-[10px] font-bold uppercase tracking-tighter italic w-fit">
+            Visione Corrente
+          </span>
+          {repoInfo && (
+            <span className="text-[8px] text-venice-dark/40 font-bold mt-1 uppercase tracking-[0.1em]">
+              Repo: {repoInfo.name} ({repoInfo.branch}) • {fileCount} doc
+            </span>
+          )}
+          {error && (
+            <span className="text-[9px] text-venice-red font-bold mt-1 uppercase tracking-widest">
+              {error}
+            </span>
+          )}
+        </div>
+
+        <button
+          onClick={onOpenProgram}
+          className="text-[10px] font-bold uppercase tracking-[0.2em] text-venice-red bg-venice-red/5 px-4 py-2 border border-venice-red/20 hover:bg-venice-red hover:text-white transition-all flex items-center gap-2 group"
+        >
+          Vai al Programma Completo
+          <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+        </button>
+      </div>
+
+      {visionLoading ? (
+        <div className="space-y-4 animate-pulse">
+          <div className="h-16 bg-venice-red/5 w-full"></div>
+          <div className="h-16 bg-venice-red/5 w-4/5"></div>
+        </div>
+      ) : (
+        <h2 className="text-3xl md:text-4xl lg:text-[56px] font-serif leading-[1.1] md:leading-[0.95] tracking-tight mb-8 max-w-4xl">
+          <span>{vision}</span>
+        </h2>
+      )}
+
+      <p className="text-lg md:text-xl leading-relaxed text-venice-dark/80 max-w-lg mb-12 italic">
+        "La mia priorità è chiara: voglio una città che non sia un museo, ma un laboratorio di vita"
+      </p>
+
+      <div className="grid grid-cols-1 gap-12">
+        <div>
+          <h4 className="text-[10px] uppercase font-bold tracking-widest text-venice-red mb-4 border-b border-venice-red/20 pb-1">
+            Ultimi documenti caricati nella base di conoscenza
+          </h4>
+          <ul className="text-sm space-y-3 font-medium">
+            {topics.length > 0 ? topics.slice(0, 5).map((topic) => (
+              <li key={topic.path || topic.sha} className="flex items-center gap-2 group">
+                <FileText className="w-3 h-3 text-venice-red/40 group-hover:text-venice-red transition-colors" />
+                <a
+                  href={topic.html_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-venice-red transition-colors truncate block max-w-[250px]"
+                >
+                  {topic.name.replace('.md', '').replaceAll('-', ' ')}
+                </a>
+              </li>
+            )) : (
+              <li className="flex items-center gap-2 text-venice-dark/50 italic">
+                • Sto sincronizzando i documenti elettorali da GitHub...
+              </li>
+            )}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FeedbackForm = () => {
+  const [formData, setFormData] = useState({
+    author: '',
+    category: 'Proposta',
+    message: '',
+    _honeypot: ''
+  });
+  const [step, setStep] = useState<'edit' | 'review'>('edit');
+  const [mathChallenge, setMathChallenge] = useState({ q: '', a: 0 });
+  const [userAnswer, setUserAnswer] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [feedbackList, setFeedbackList] = useState<any[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+
+  const generateChallenge = () => {
+    const a = Math.floor(Math.random() * 6) + 1;
+    const b = Math.floor(Math.random() * 4) + 1;
+    setMathChallenge({ q: `${a} + ${b}`, a: a + b });
+  };
+
+  const fetchFeedback = async () => {
+    setLoadingList(true);
+    try {
+      const res = await fetch('/api/latest-feedback');
+      const data = await res.json();
+      setFeedbackList(data.feedbacks || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingList(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFeedback();
+    generateChallenge();
+  }, []);
+
+  const handleNext = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.message.length < 5)         return;
       }
 
       setLoading(true);
