@@ -23,7 +23,7 @@ const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
 
 // --- Components ---
 
-const ChatInterface = ({ githubContext }: { githubContext: string }) => {
+const ChatInterface = ({ githubContext, feedbackList, loadingList }: { githubContext: string, feedbackList: any[], loadingList: boolean }) => {
   const [messages, setMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([
     { role: 'assistant', content: "Benvenuto nella Sala di Consultazione Digitale. Sono il Sindaco AI di Venezia. Come posso aiutarti oggi?" }
   ]);
@@ -116,6 +116,25 @@ const ChatInterface = ({ githubContext }: { githubContext: string }) => {
   );
 };
 
+const DEFAULT_MANIFESTO = `# Venezia 2026: Il futuro che onora la storia millenaria della Laguna
+
+Nel 2026, Venezia non sarà solo una città d’arte che resiste al tempo, ma il simbolo globale di una nuova alleanza tra uomo, tecnologia e ambiente. A 1600 anni dalla sua mitica fondazione, la Serenissima si appresta a vivere un anno di svolta, ponendosi come laboratorio a cielo aperto per la sostenibilità mondiale.
+
+### 1. Venezia Capitale Mondiale della Sostenibilità
+Il polo di Porto Marghera si trasforma in una "Hydrogen Valley". Con il sistema MOSE ormai pienamente a regime e integrato da algoritmi predittivi, Venezia dimostra al mondo come una città costiera possa difendersi dall'innalzamento dei mari.
+
+### 2. Le Olimpiadi Invernali Milano-Cortina 2026
+Venezia diventerà il salotto di rappresentanza per le delegazioni internazionali, unendo il fascino dei canali alla maestosità delle Dolomiti.
+
+### 3. Un Nuovo Modello di Residenzialità: "Venezia è Viva"
+Grazie alla fibra ottica e alla nascita di hub tecnologici, Venezia attira una nuova generazione di professionisti internazionali (Smart Working). Il turismo si evolve in uno strumento di tutela, valorizzando l'artigianato locale.
+
+### 4. La Rinascita Culturale e Tecnologica
+I musei veneziani useranno Realtà Aumentata per mostrare l'evoluzione storica. L'Arsenale diventa centro di ricerca per le tecnologie marine e la Blue Economy.
+
+### Conclusione
+Venezia 2026 non cerca di sfuggire al suo passato, ma lo usa come fondamenta per costruire un modello di civiltà resiliente. **Preservare la bellezza è l'unica via per l'innovazione.**`;
+
 const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubContext: string }) => {
   const [program, setProgram] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -167,7 +186,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         
         if (isQuotaError || isHighDemand) {
           console.warn("Gemini Service Issue. Using fallback content.");
-          setProgram(`# Programma Elettorale 2026\n\n*Nota: Il servizio di protocollo AI è momentaneamente congestionato a causa dell'alta richiesta.* \n\n**Messaggio del Sindaco AI:**\n"Cari cittadini, la mia 'mente digitale' è attualmente impegnata in una fase di elaborazione intensiva per servire tutta la cittadinanza. La trasparenza è il mio primo valore: l'intelligenza artificiale ha dei limiti di calcolo momentanei nel piano gratuito, ma la nostra visione non ne ha."\n\n**Sintesi dei Pilastri Fondamentali:**\n1. **Sostenibilità Lagunare:** Protezione dell'ecosistema e transizione green.\n2. **Residenzialità:** Politiche attive per riportare i veneziani in città storica.\n3. **Innovazione:** Venezia come laboratorio mondiale di tecnologie per il clima.\n\n*Il documento integrale verrà ripristinato automaticamente tra pochi istanti o al prossimo riavvio. Grazie per la pazienza.*`);
+          setProgram(DEFAULT_MANIFESTO);
         } else {
           console.error("AI Program Error Full:", err);
           setProgram(`# Errore di Comunicazione\n\nSi è verificato un problema tecnico nella consultazione dei documenti del programma.\n\n**Dettaglio:** ${err.message || "Errore nella generazione del testo."}\n\n*Per favore, prova a ricaricare la pagina o riapri il programma tra qualche minuto.*`);
@@ -315,14 +334,17 @@ const VisionSection = ({
             <div className="h-12 bg-venice-red/5 w-3/4 rounded" />
           </div>
         ) : (
-          <motion.h2 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-4xl md:text-5xl lg:text-7xl font-serif leading-[1.1] tracking-tight text-venice-dark mb-6"
           >
-             <span dangerouslySetInnerHTML={{ __html: vision.replace(/Venezia/g, '<span class="text-venice-red">Venezia</span>') }} />
-          </motion.h2>
+            <h2 className={`font-serif tracking-tight text-venice-dark mb-6 ${
+              vision.length > 100 ? 'text-3xl md:text-4xl leading-tight' : 'text-4xl md:text-5xl lg:text-6xl leading-[1.05]'
+            }`}>
+               <span dangerouslySetInnerHTML={{ __html: vision.replace(/Venezia/g, '<span class="text-venice-red">Venezia</span>') }} />
+            </h2>
+          </motion.div>
         )}
         
         <motion.p 
@@ -395,14 +417,12 @@ const VisionSection = ({
   );
 };
 
-const FeedbackForm = () => {
+const FeedbackForm = ({ onSubmitted }: { onSubmitted: () => void }) => {
   const [formData, setFormData] = useState({ author: '', category: 'Proposta', message: '', _honeypot: '' });
   const [step, setStep] = useState<'edit' | 'review'>('edit');
   const [mathChallenge, setMathChallenge] = useState({ q: '', a: 0 });
   const [userAnswer, setUserAnswer] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [feedbackList, setFeedbackList] = useState<any[]>([]);
-  const [loadingList, setLoadingList] = useState(true);
 
   const generateChallenge = () => {
     const a = Math.floor(Math.random() * 6) + 1;
@@ -410,21 +430,7 @@ const FeedbackForm = () => {
     setMathChallenge({ q: `${a} + ${b}`, a: a + b });
   };
 
-  const fetchFeedback = async () => {
-    setLoadingList(true);
-    try {
-      const res = await fetch('/api/latest-feedback');
-      const data = await res.json();
-      setFeedbackList(data.feedbacks || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingList(false);
-    }
-  };
-
   useEffect(() => {
-    fetchFeedback();
     generateChallenge();
   }, []);
 
@@ -456,7 +462,7 @@ const FeedbackForm = () => {
         setStep('edit');
         setUserAnswer('');
         generateChallenge();
-        fetchFeedback();
+        onSubmitted();
         setTimeout(() => setStatus('idle'), 3000);
       } else { setStatus('error'); }
     } catch (err) { setStatus('error'); }
@@ -587,43 +593,6 @@ const FeedbackForm = () => {
           </form>
         )}
       </div>
-
-      <div className="pt-10 mt-12 border-t border-venice-red/20">
-        <div className="flex items-center gap-2 mb-6">
-          <Globe className="w-4 h-4 text-venice-red" />
-          <h4 className="text-[11px] uppercase font-bold tracking-[0.2em] text-venice-red">Bacheca delle Istanze Pubbliche</h4>
-        </div>
-        
-        <div className="space-y-4">
-          {loadingList ? (
-            <div className="animate-pulse space-y-3">
-              <div className="h-4 bg-venice-dark/5 w-full rounded"></div>
-              <div className="h-4 bg-venice-dark/5 w-4/5 rounded"></div>
-            </div>
-          ) : feedbackList.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3">
-              {feedbackList.map((feedback, idx) => (
-                <motion.div 
-                  initial={{ opacity: 0, x: -5 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  key={idx} 
-                  className="flex flex-col border-b border-venice-dark/10 pb-3"
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-venice-red/60">{feedback.category}</span>
-                    <span className="text-[8px] font-mono opacity-40 uppercase">Archiviato</span>
-                  </div>
-                  <p className="text-sm font-medium italic text-venice-dark/90 leading-snug">"{feedback.message}"</p>
-                  <span className="text-[9px] mt-1 font-bold opacity-30 uppercase tracking-tighter">— {feedback.author || 'Cittadino'}</span>
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[10px] italic opacity-40 uppercase tracking-widest text-center py-4 border border-dashed border-venice-red/20">Nessuna istanza pubblica registrata nelle ultime 24 ore</p>
-          )}
-        </div>
-      </div>
     </div>
   );
 };
@@ -684,8 +653,24 @@ export default function App() {
   const [topics, setTopics] = useState<any[]>([]);
   const [fileCount, setFileCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [feedbackList, setFeedbackList] = useState<any[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+
+  const fetchFeedback = async () => {
+    setLoadingList(true);
+    try {
+      const res = await fetch('/api/latest-feedback');
+      const data = await res.json();
+      setFeedbackList(data.feedbacks || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingList(false);
+    }
+  };
 
   useEffect(() => {
+    fetchFeedback();
     const fetchData = async () => {
       setVisionLoading(true);
       setError(null);
@@ -790,7 +775,7 @@ export default function App() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.5 }}
             >
-              <ChatInterface githubContext={githubContext} />
+              <ChatInterface githubContext={githubContext} feedbackList={feedbackList} loadingList={loadingList} />
               <div className="mt-8 flex items-center justify-between px-4 opacity-50">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-3 h-3 text-green-600" />
@@ -808,10 +793,53 @@ export default function App() {
         </main>
         
         {/* Public Feedback & Transparency Section */}
-        <section id="istanze" className="border-t border-venice-red/10 bg-venice-cream flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-venice-red/10">
+        <section id="istanze" className="border-t border-venice-red/20 bg-white flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-venice-red/10">
           <div className="flex-1 p-8 md:p-16">
-            <h3 className="text-3xl font-serif italic mb-10 text-venice-dark">Registro delle Istanze <br/> e Consultazione</h3>
-            <FeedbackForm />
+            <h3 className="text-3xl font-serif italic mb-2 text-venice-dark">Istanze dei Cittadini</h3>
+            <p className="text-xs uppercase tracking-[0.2em] font-bold text-venice-red/60 mb-10">Partecipazione Diretta e Democrazia Liquida</p>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
+              <FeedbackForm onSubmitted={fetchFeedback} />
+              <div className="bg-venice-cream/20 p-8 border border-venice-red/10 h-[500px] flex flex-col">
+                <div className="flex items-center gap-3 mb-8 border-b border-venice-red/10 pb-4">
+                  <Globe className="w-5 h-5 text-venice-red" />
+                  <h4 className="text-xs font-bold uppercase tracking-[0.2em]">Live Ledger (Registro Pubblico)</h4>
+                </div>
+        <div className="flex-1 overflow-y-auto space-y-6 pr-4 custom-scrollbar">
+                  {!loadingList && feedbackList.length > 0 && (
+                    <div className="mb-8 p-3 bg-venice-red/5 border-l-2 border-venice-red text-[10px] font-bold uppercase tracking-widest text-venice-red animate-pulse">
+                      Live Ledger: {feedbackList.length} Istanze Verificate
+                    </div>
+                  )}
+                  {loadingList ? (
+                    <div className="space-y-4 animate-pulse">
+                      <div className="h-20 bg-venice-red/5 rounded"></div>
+                      <div className="h-20 bg-venice-red/5 rounded"></div>
+                    </div>
+                  ) : feedbackList.length > 0 ? (
+                    feedbackList.map((fb, idx) => (
+                      <motion.div 
+                        key={idx}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="p-4 bg-white shadow-sm border-l-4 border-venice-red relative group"
+                      >
+                         <div className="flex justify-between items-center mb-2">
+                           <span className="text-[9px] font-bold uppercase tracking-widest text-venice-red/60">{fb.category}</span>
+                           <span className="text-[8px] opacity-40 uppercase font-mono">{idx === 0 ? 'Nuova' : 'Archiviata'}</span>
+                         </div>
+                         <p className="text-sm font-serif italic text-venice-dark group-hover:text-venice-red transition-colors">"{fb.message}"</p>
+                         <p className="mt-3 text-[10px] font-bold opacity-30 uppercase tracking-widest">— {fb.author || 'Cittadino'}</p>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full opacity-30">
+                      <MessageSquare className="w-12 h-12 mb-4" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">Nessun dato registrato</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
           <div className="lg:w-1/3 p-8 md:p-16 bg-venice-red/5">
             <div className="sticky top-8">
