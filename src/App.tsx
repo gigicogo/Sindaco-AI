@@ -186,10 +186,11 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         
         if (isQuotaError || isHighDemand) {
           console.warn("Gemini Service Issue. Using fallback content.");
+          // More graceful fallback message
           setProgram(DEFAULT_MANIFESTO);
         } else {
           console.error("AI Program Error Full:", err);
-          setProgram(`# Errore di Comunicazione\n\nSi è verificato un problema tecnico nella consultazione dei documenti del programma.\n\n**Dettaglio:** ${err.message || "Errore nella generazione del testo."}\n\n*Per favore, prova a ricaricare la pagina o riapri il programma tra qualche minuto.*`);
+          setProgram(`# Protocollo di Emergenza\n\nIl sistema di analisi AI è attualmente in fase di ricalibrazione sintetico-semantica.\n\n**Nota per il cittadino:** La visione politica rimane accessibile tramite il manifesto di base mentre i motori di elaborazione tornano a regime.\n\n*Il documento dinamico verrà ripristinato automaticamente appena possibile.*`);
         }
       } finally {
         setLoading(false);
@@ -316,13 +317,13 @@ const VisionSection = ({
           </span>
           {repoInfo && (
             <div className="flex items-center gap-2 group cursor-help" title={`Branch: ${repoInfo.branch}`}>
-              <div className={`w-2 h-2 rounded-full animate-pulse ${topics.length > 0 ? 'bg-green-500' : 'bg-venice-red'}`} />
+              <div className={`w-2 h-2 rounded-full animate-pulse ${fileCount > 0 ? 'bg-green-500' : 'bg-venice-red'}`} />
               <span className="text-[10px] text-venice-dark/60 font-bold uppercase tracking-widest">
-                {repoInfo.name} • {fileCount} Capitoli Programmatici
+                {repoInfo.name} • {fileCount > 0 ? `${fileCount} Capitoli Programmatici` : 'In attesa di documenti'}
               </span>
             </div>
           )}
-          {error && <span className="text-[10px] text-venice-red font-bold mt-2 uppercase tracking-widest animate-bounce">{error}</span>}
+          {error && <span className="text-[10px] text-venice-red/80 font-bold mt-2 uppercase tracking-[0.1em]">{error}</span>}
         </div>
       </motion.div>
       
@@ -390,7 +391,16 @@ const VisionSection = ({
                 </div>
               </motion.li>
             )) : (
-              <li className="text-[10px] italic opacity-40 uppercase tracking-widest">Sincronizzazione documenti in corso...</li>
+              <li className="flex flex-col gap-2">
+                <p className="text-[10px] italic opacity-40 uppercase tracking-widest">
+                  {fileCount === 0 ? "Nessun documento rilevato nel repository." : "Analisi capitoli in corso..."}
+                </p>
+                {fileCount === 0 && (
+                  <p className="text-[8px] font-bold text-venice-red/60 uppercase">
+                    Verificare la presenza di file .md su {repoInfo?.name || 'GitHub'}
+                  </p>
+                )}
+              </li>
             )}
           </ul>
         </motion.div>
@@ -746,11 +756,12 @@ export default function App() {
           
           if (isQuota) {
             console.warn("Gemini Quota Exceeded in Vision. Using fallback vision.");
-            setVision("Venezia 2026: L'armonia tra <span class='italic'>storia millenaria</span> e futuro tecnologico.");
-            setError("Servizio AI momentaneamente in coda. Consultazione disponibile.");
+            setVision("Venezia 2026: L'armonia tra storia millenaria e futuro tecnologico.");
+            setError("Sistema in modalità Risparmio Risorse (AI Overload).");
           } else {
             console.error("Gemini Vision Error:", aiErr);
-            setVision("Venezia 2026: Tradizione e Innovazione.");
+            setVision("Venezia 2026: Un ponte tra tradizione e innovazione.");
+            setError(null);
           }
         }
 
