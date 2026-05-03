@@ -319,7 +319,7 @@ const VisionSection = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-4xl md:text-5xl lg:text-[72px] font-serif leading-[1.05] md:leading-[0.9] tracking-tight text-venice-dark mb-6"
+            className="text-4xl md:text-5xl lg:text-7xl font-serif leading-[1.1] tracking-tight text-venice-dark mb-6"
           >
              <span dangerouslySetInnerHTML={{ __html: vision.replace(/Venezia/g, '<span class="text-venice-red">Venezia</span>') }} />
           </motion.h2>
@@ -588,21 +588,39 @@ const FeedbackForm = () => {
         )}
       </div>
 
-      <div className="pt-8 mt-12 border-t border-venice-red/10">
-        <h4 className="text-[10px] uppercase font-bold tracking-widest text-venice-red mb-4">Ultime istanze</h4>
-        <div className="space-y-3">
+      <div className="pt-10 mt-12 border-t border-venice-red/20">
+        <div className="flex items-center gap-2 mb-6">
+          <Globe className="w-4 h-4 text-venice-red" />
+          <h4 className="text-[11px] uppercase font-bold tracking-[0.2em] text-venice-red">Bacheca delle Istanze Pubbliche</h4>
+        </div>
+        
+        <div className="space-y-4">
           {loadingList ? (
-            <div className="animate-pulse space-y-2">
-              <div className="h-4 bg-venice-dark/5 w-full"></div>
-              <div className="h-4 bg-venice-dark/5 w-4/5"></div>
+            <div className="animate-pulse space-y-3">
+              <div className="h-4 bg-venice-dark/5 w-full rounded"></div>
+              <div className="h-4 bg-venice-dark/5 w-4/5 rounded"></div>
             </div>
-          ) : feedbackList.length > 0 ? feedbackList.map((feedback, idx) => (
-            <div key={idx} className="flex justify-between items-end border-b border-venice-dark/10 pb-2">
-              <span className="text-xs font-medium italic truncate w-48">{feedback.message}</span>
-              <span className="text-[9px] font-mono opacity-50 uppercase">{feedback.category}</span>
+          ) : feedbackList.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3">
+              {feedbackList.map((feedback, idx) => (
+                <motion.div 
+                  initial={{ opacity: 0, x: -5 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  key={idx} 
+                  className="flex flex-col border-b border-venice-dark/10 pb-3"
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-venice-red/60">{feedback.category}</span>
+                    <span className="text-[8px] font-mono opacity-40 uppercase">Archiviato</span>
+                  </div>
+                  <p className="text-sm font-medium italic text-venice-dark/90 leading-snug">"{feedback.message}"</p>
+                  <span className="text-[9px] mt-1 font-bold opacity-30 uppercase tracking-tighter">— {feedback.author || 'Cittadino'}</span>
+                </motion.div>
+              ))}
             </div>
-          )) : (
-            <p className="text-[10px] italic opacity-40 uppercase tracking-widest">Nessuna istanza ricevuta</p>
+          ) : (
+            <p className="text-[10px] italic opacity-40 uppercase tracking-widest text-center py-4 border border-dashed border-venice-red/20">Nessuna istanza pubblica registrata nelle ultime 24 ore</p>
           )}
         </div>
       </div>
@@ -789,23 +807,35 @@ export default function App() {
           </section>
         </main>
         
-        {/* Added Feedback Section at the bottom for formal submissions */}
-        <section className="border-t border-venice-red/10 bg-venice-cream flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-venice-red/10">
-          <div className="flex-1 p-8 md:p-12">
+        {/* Public Feedback & Transparency Section */}
+        <section id="istanze" className="border-t border-venice-red/10 bg-venice-cream flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-venice-red/10">
+          <div className="flex-1 p-8 md:p-16">
+            <h3 className="text-3xl font-serif italic mb-10 text-venice-dark">Registro delle Istanze <br/> e Consultazione</h3>
             <FeedbackForm />
           </div>
-          <div className="lg:w-1/3 p-8 md:p-12 bg-venice-red/5">
-            <h3 className="text-xl font-serif italic mb-6">Trasparenza Digital Government</h3>
-            <p className="text-xs leading-relaxed text-venice-dark/70 mb-8 font-medium">
-              Venezia 2026 non è una semplice campagna elettorale, è un esperimento di democrazia liquida basata su agenti digitali. Ogni tua parola contribuisce a raffinare il programma elettorale attraverso algoritmi di analisi del sentiment e sintesi documentale.
-            </p>
-            <div className="space-y-4">
-              <div className="p-4 bg-white/50 border border-venice-red/10">
-                <span className="text-[10px] font-bold uppercase tracking-widest block mb-1">Status Base di Conoscenza</span>
-                <div className="w-full bg-venice-cream h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-venice-red h-full w-[85%]" />
+          <div className="lg:w-1/3 p-8 md:p-16 bg-venice-red/5">
+            <div className="sticky top-8">
+              <h3 className="text-xl font-serif italic mb-6">Trasparenza Digital Government</h3>
+              <p className="text-sm leading-relaxed text-venice-dark/70 mb-8 font-medium">
+                Venezia 2026 non è una semplice campagna elettorale, è un esperimento di democrazia liquida basata su agenti digitali. Ogni tua parola contribuisce a raffinare il programma elettorale attraverso algoritmi di analisi del sentiment e sintesi documentale.
+              </p>
+              <div className="space-y-6">
+                <div className="p-6 bg-white border border-venice-red/10 shadow-sm">
+                  <span className="text-[10px] font-bold uppercase tracking-widest block mb-3 text-venice-red">Status Base di Conoscenza</span>
+                  <div className="w-full bg-venice-cream h-2 rounded-full overflow-hidden mb-2">
+                    <div className="bg-venice-red h-full w-[85%] animate-pulse" />
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[8px] font-bold uppercase opacity-50">Sincronizzazione Live</span>
+                    <span className="text-[8px] font-bold uppercase text-venice-red">85% Data Depth</span>
+                  </div>
                 </div>
-                <span className="text-[8px] font-bold mt-1 block text-right opacity-50">Sincronizzato: {new Date().toLocaleTimeString()}</span>
+                
+                <div className="p-4 border-l-2 border-venice-red bg-venice-red/5">
+                  <p className="text-[10px] font-bold uppercase tracking-tight leading-4 opacity-60">
+                    Le istanze vengono anonimizzate prima di essere integrate nel modello linguistico del Sindaco.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
