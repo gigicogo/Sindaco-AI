@@ -10,7 +10,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 const GITHUB_OWNER = "gigicogo";
-const GITHUB_REPO = "Sindaco-AI";
+const GITHUB_REPO = "Elezioni-Venezia-2026";
 
 // Helper to get GitHub headers
 const getGHHeaders = (isRaw = false) => {

@@ -316,9 +316,9 @@ const VisionSection = ({
           </span>
           {repoInfo && (
             <div className="flex items-center gap-2 group cursor-help" title={`Branch: ${repoInfo.branch}`}>
-              <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${topics.length > 0 ? 'bg-green-500' : 'bg-venice-red'}`} />
+              <div className={`w-2 h-2 rounded-full animate-pulse ${topics.length > 0 ? 'bg-green-500' : 'bg-venice-red'}`} />
               <span className="text-[10px] text-venice-dark/60 font-bold uppercase tracking-widest">
-                {repoInfo.name} • {Math.max(fileCount, topics.length)} Documenti Caricati
+                {repoInfo.name} • {fileCount} Capitoli Programmatici
               </span>
             </div>
           )}
@@ -659,15 +659,15 @@ export default function App() {
   const cleanVisionText = (text: string) => {
     // Remove markdown markers often ignored by LLM instructions
     let clean = text.replace(/[*#_>`]/g, '').trim();
-    // Split into sentences and take only the first one
+    // Split into sentences and take only the first one if it's very long
     const sentences = clean.split(/[.!?]/);
-    if (sentences.length > 1) {
+    if (sentences.length > 1 && clean.length > 150) {
       clean = sentences[0] + '.';
     }
-    // Limit to 20 words maximum just in case
+    // Limit to 25 words maximum to keep it as a slogan header
     const words = clean.split(/\s+/);
-    if (words.length > 20) {
-      clean = words.slice(0, 20).join(' ') + '...';
+    if (words.length > 25) {
+      clean = words.slice(0, 25).join(' ') + '...';
     }
     return clean;
   };
