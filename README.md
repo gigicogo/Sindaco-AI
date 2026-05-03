@@ -1,20 +1,5 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+Ho provato a fare un esperimento che mi incuriosiva da tempo: usare l’AI non per “automatizzare contenuti”, ma per simulare processi decisionali complessi.
 
-# Run and deploy your AI Studio app
+Così è nato Sindaco AI: un’app realizzata in vibecoding che mette l’intelligenza artificiale nei panni di un sindaco chiamato a gestire una città tra priorità in conflitto, risorse limitate, pressioni politiche e conseguenze spesso imprevedibili. Il trucco sotto il cofano? Un RAG artigianale che alimento giornalmente.
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/ffe6d8a5-10be-4297-bf83-1c52ad4a07f4
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+L’idea di fondo è semplice: quando chiediamo “l’AI può decidere?”, in realtà dovremmo chiederci come decide, su quali dati decide e chi definisce gli obiettivi. Per questo ho voluto trasformare il tema in qualcosa di esplorabile, non solo teorico.
