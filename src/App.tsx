@@ -316,9 +316,9 @@ const VisionSection = ({
           </span>
           {repoInfo && (
             <div className="flex items-center gap-2 group cursor-help" title={`Branch: ${repoInfo.branch}`}>
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${topics.length > 0 ? 'bg-green-500' : 'bg-venice-red'}`} />
               <span className="text-[10px] text-venice-dark/60 font-bold uppercase tracking-widest">
-                {repoInfo.name} • {fileCount} Documenti Attivi
+                {repoInfo.name} • {Math.max(fileCount, topics.length)} Documenti Caricati
               </span>
             </div>
           )}
@@ -656,6 +656,22 @@ export default function App() {
   const [feedbackList, setFeedbackList] = useState<any[]>([]);
   const [loadingList, setLoadingList] = useState(true);
 
+  const cleanVisionText = (text: string) => {
+    // Remove markdown markers often ignored by LLM instructions
+    let clean = text.replace(/[*#_>`]/g, '').trim();
+    // Split into sentences and take only the first one
+    const sentences = clean.split(/[.!?]/);
+    if (sentences.length > 1) {
+      clean = sentences[0] + '.';
+    }
+    // Limit to 20 words maximum just in case
+    const words = clean.split(/\s+/);
+    if (words.length > 20) {
+      clean = words.slice(0, 20).join(' ') + '...';
+    }
+    return clean;
+  };
+
   const fetchFeedback = async () => {
     setLoadingList(true);
     try {
@@ -721,7 +737,8 @@ export default function App() {
             contents: prompt
           });
 
-          setVision(response.text || "Venezia 2026: Innovazione e Storia.");
+          const rawVision = response.text || "Venezia 2026: Innovazione e Storia.";
+          setVision(cleanVisionText(rawVision));
 
         } catch (aiErr: any) {
           const aiErrorMsg = (aiErr.message || "").toUpperCase();
