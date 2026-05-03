@@ -19,7 +19,7 @@ app.use((req, res, next) => {
 });
 
 const GITHUB_OWNER = "gigicogo";
-const GITHUB_REPO = "Elezioni-Venezia-2026";
+const GITHUB_REPO = "Sindaco-AI";
 
 app.get("/api/health", (req, res) => {
   res.json({ 

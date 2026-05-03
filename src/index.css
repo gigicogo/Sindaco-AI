@@ -13,12 +13,51 @@
 
 @layer base {
   body {
-    @apply bg-venice-cream text-venice-dark font-sans;
+    @apply bg-venice-cream text-venice-dark font-sans selection:bg-venice-red selection:text-white;
   }
 }
 
-.markdown-body p {
-  @apply mb-6 leading-relaxed;
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 4s ease-in-out infinite;
+}
+
+.bg-shimmer {
+  background: linear-gradient(90deg, rgba(160,30,34,0.05) 25%, rgba(160,30,34,0.1) 50%, rgba(160,30,34,0.05) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.venice-border {
+  border: 1px solid rgba(160,30,34,0.15);
+  box-shadow: 0 4px 20px -5px rgba(29,29,27,0.1);
+}
+
+.venice-card {
+  @apply bg-white border border-venice-red/10 p-6 md:p-8 transition-all hover:border-venice-red/30;
+}
+
+.markdown-body {
+  @apply font-sans;
 }
 
 .markdown-body h2 {
