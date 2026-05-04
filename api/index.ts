@@ -160,6 +160,7 @@ app.get("/api/github-context", async (req, res) => {
       files: mdFiles.map((f: any) => ({
         name: f.name,
         path: f.path,
+        date: f.sortDate,
         html_url: `https://github.com/${GITHUB_OWNER}/${repo}/blob/${branch}/${f.path}`
       }))
     });

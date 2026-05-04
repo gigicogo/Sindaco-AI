@@ -19,7 +19,7 @@ app.use((req, res, next) => {
 });
 
 const GITHUB_OWNER = "gigicogo";
-const GITHUB_REPO = "Sindaco-AI";
+const GITHUB_REPO = "Elezioni-Venezia-2026";
 
 app.get("/api/health", (req, res) => {
   res.json({ 
@@ -173,6 +173,7 @@ app.get("/api/github-context", async (req, res) => {
       name: f.name,
       path: f.path,
       sha: f.sha,
+      date: f.sortDate,
       html_url: `https://github.com/${GITHUB_OWNER}/${repo}/blob/${branch}/${f.path}`
     }));
 

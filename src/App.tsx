@@ -254,6 +254,139 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
   );
 };
 
+const TopicSummary = ({ topic, githubContext, onClose }: { topic: any, githubContext: string, onClose: () => void }) => {
+  const [summary, setSummary] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const getSummary = async () => {
+      setLoading(true);
+      try {
+        // Extract content of this specific file from context if possible
+        const fileMarker = `--- FILE: ${topic.path} ---`;
+        const nextMarker = "--- FILE:";
+        let fileContent = "";
+        const startIndex = githubContext.indexOf(fileMarker);
+        if (startIndex !== -1) {
+          const remaining = githubContext.substring(startIndex + fileMarker.length);
+          const endIndex = remaining.indexOf(nextMarker);
+          fileContent = endIndex !== -1 ? remaining.substring(0, endIndex) : remaining;
+        }
+
+        const prompt = `Sei il Sindaco AI di Venezia. Analizza questo specifico capitolo del programma: "${topic.name}".
+        
+        CONTENUTO DEL CAPITOLO:
+        ${fileContent || "Contenuto non trovato nel contesto generale."}
+        
+        Compito: Spiega al cittadino cosa prevede questo punto del programma in modo semplice ma visionario. Massimo 100 parole.`;
+
+        const result = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: prompt
+        });
+        setSummary(result.text || "Analisi non disponibile per questo capitolo.");
+      } catch (err) {
+        setSummary("Si è verificato un errore nell'analisi del capitolo.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    getSummary();
+  }, [topic, githubContext]);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="bg-venice-dark text-white p-6 md:p-10 shadow-2xl relative border-l-8 border-venice-red"
+    >
+      <button onClick={onClose} className="absolute top-4 right-4 opacity-50 hover:opacity-100 transition-opacity">
+        <X className="w-4 h-4" />
+      </button>
+      <div className="mb-6">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-venice-red bg-white px-2 py-1 mb-2 inline-block">Focus Capitolo</span>
+        <h3 className="text-2xl font-serif italic">{topic.name.replace('.md', '').replaceAll('-', ' ')}</h3>
+      </div>
+      
+      {loading ? (
+        <div className="space-y-4 animate-pulse">
+          <div className="h-4 bg-white/10 w-full" />
+          <div className="h-4 bg-white/10 w-5/6" />
+        </div>
+      ) : (
+        <div className="text-sm leading-relaxed border-t border-white/10 pt-4 opacity-90">
+          <ReactMarkdown>{summary}</ReactMarkdown>
+        </div>
+      )}
+      
+      <div className="mt-8 flex justify-end">
+        <a 
+          href={topic.html_url} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="text-[9px] uppercase font-bold tracking-widest hover:text-venice-red flex items-center gap-2"
+        >
+          Sorgente GitHub <Globe className="w-3 h-3" />
+        </a>
+      </div>
+    </motion.div>
+  );
+};
+
+const LiveLedger = ({ feedbackList, loading }: { feedbackList: any[], loading: boolean }) => {
+  return (
+    <section id="ledger" className="bg-white border-t border-venice-red/10 py-16 px-6 md:px-10">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-12 flex flex-col md:flex-row justify-between items-baseline gap-4">
+          <div>
+            <h2 className="text-[10px] font-bold tracking-[0.3em] uppercase text-venice-red mb-2">Trasparenza & Istanze</h2>
+            <h3 className="text-3xl font-serif italic text-venice-dark">Live Ledger del Cittadino</h3>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 text-[9px] font-bold uppercase tracking-widest border border-green-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+            Sync in tempo reale con GitHub
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-pulse">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-40 bg-venice-cream/50 border border-venice-red/10" />
+            ))}
+          </div>
+        ) : feedbackList.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {feedbackList.map((feedback, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-venice-cream/20 p-6 border-t-2 border-venice-dark group hover:bg-white transition-all shadow-sm flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-venice-red">{feedback.category}</span>
+                    <MessageSquare className="w-3 h-3 opacity-20" />
+                  </div>
+                  <p className="text-sm font-serif italic text-venice-dark/80 line-clamp-4 mb-4">"{feedback.message}"</p>
+                </div>
+                <div className="pt-4 border-t border-venice-dark/5">
+                  <span className="text-[9px] font-bold uppercase tracking-widest opacity-40">Istanza di {feedback.author}</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-20 text-center border-2 border-dashed border-venice-red/10">
+            <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 italic">Nessuna istanza formale registrata nelle ultime 48 ore.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
 const Header = ({ onOpenProgram }: { onOpenProgram: () => void }) => {
   return (
     <header className="flex flex-col md:flex-row justify-between items-start md:items-center px-6 md:px-10 py-8 border-b border-venice-red/20 bg-white">
@@ -293,7 +426,8 @@ const VisionSection = ({
   topics, 
   fileCount, 
   error, 
-  repoInfo 
+  repoInfo,
+  onSelectTopic
 }: { 
   onOpenProgram: () => void, 
   loading: boolean,
@@ -302,8 +436,17 @@ const VisionSection = ({
   topics: any[],
   fileCount: number,
   error: string | null,
-  repoInfo: any
+  repoInfo: any,
+  onSelectTopic: (topic: any) => void
 }) => {
+  const isRecent = (dateStr: string) => {
+    if (!dateStr || dateStr === "0000-00-00") return false;
+    const fileDate = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - fileDate.getTime();
+    return diff < (1000 * 60 * 60 * 24 * 7); // 7 days
+  };
+
   return (
     <div className="p-8 md:p-16 flex flex-col justify-center border-b md:border-b-0 md:border-r border-venice-red/10 bg-white/40">
       <motion.div 
@@ -318,9 +461,12 @@ const VisionSection = ({
           {repoInfo && (
             <div className="flex items-center gap-2 group cursor-help" title={`Branch: ${repoInfo.branch}`}>
               <div className={`w-2 h-2 rounded-full animate-pulse ${fileCount > 0 ? 'bg-green-500' : 'bg-venice-red'}`} />
-              <span className="text-[10px] text-venice-dark/60 font-bold uppercase tracking-widest">
-                {repoInfo.name} • {fileCount > 0 ? `${fileCount} Capitoli Programmatici` : 'In attesa di documenti'}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-[10px] text-venice-dark/60 font-bold uppercase tracking-widest">
+                  {repoInfo.name} • {fileCount > 0 ? `${fileCount} Capitoli Programmatici` : 'In attesa di documenti'}
+                </span>
+                <span className="text-[8px] opacity-40 font-bold uppercase tracking-widest">Sincronizzazione Live Attiva</span>
+              </div>
             </div>
           )}
           {error && <span className="text-[10px] text-venice-red/80 font-bold mt-2 uppercase tracking-[0.1em]">{error}</span>}
@@ -366,7 +512,7 @@ const VisionSection = ({
           className="bg-white/60 p-6 border-l-4 border-venice-red shadow-sm"
         >
           <h4 className="text-[10px] uppercase font-bold tracking-[0.2em] text-venice-red mb-6 border-b border-venice-red/10 pb-2 flex items-center gap-2">
-            <Building2 className="w-3 h-3" /> Memoria Storica Recente
+            <Building2 className="w-3 h-3" /> Evoluzione del Programma
           </h4>
           <ul className="space-y-4">
             {topics.length > 0 ? topics.slice(0, 4).map((topic, i) => (
@@ -375,19 +521,22 @@ const VisionSection = ({
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.7 + (i * 0.1) }}
-                className="flex items-start gap-3 group"
+                className="flex items-start gap-3 group cursor-pointer"
+                onClick={() => onSelectTopic(topic)}
               >
-                <div className="mt-1.5 w-1 h-1 rounded-full bg-venice-red/40 group-hover:scale-150 transition-transform" />
+                <div className={`mt-1.5 w-1.5 h-1.5 rounded-full ${isRecent(topic.date) ? 'bg-venice-red animate-pulse' : 'bg-venice-red/40'} group-hover:scale-150 transition-transform`} />
                 <div>
-                  <a 
-                    href={topic.html_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-sm font-bold hover:text-venice-red transition-all block leading-tight text-venice-dark/80"
-                  >
-                    {topic.name.replace('.md', '').replaceAll('-', ' ')}
-                  </a>
-                  <span className="text-[9px] uppercase tracking-widest opacity-40 font-bold">Documento Verificato</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold group-hover:text-venice-red transition-all block leading-tight text-venice-dark/80">
+                      {topic.name.replace('.md', '').replaceAll('-', ' ')}
+                    </span>
+                    {isRecent(topic.date) && (
+                      <span className="text-[7px] bg-venice-red text-white px-1 font-bold uppercase tracking-tighter">New</span>
+                    )}
+                  </div>
+                  <span className="text-[9px] uppercase tracking-widest opacity-40 font-bold">
+                    {topic.date && topic.date !== '0000-00-00' ? `Aggiornato il ${new Date(topic.date).toLocaleDateString('it-IT')}` : 'Capitolo Verificato'}
+                  </span>
                 </div>
               </motion.li>
             )) : (
@@ -397,7 +546,7 @@ const VisionSection = ({
                 </p>
                 {fileCount === 0 && (
                   <p className="text-[8px] font-bold text-venice-red/60 uppercase">
-                    Verificare la presenza di file .md su {repoInfo?.name || 'GitHub'}
+                    Verificare la presenza di file .md su {repoInfo?.name || 'Venezia-2026'}
                   </p>
                 )}
               </li>
@@ -665,6 +814,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [feedbackList, setFeedbackList] = useState<any[]>([]);
   const [loadingList, setLoadingList] = useState(true);
+  const [selectedTopic, setSelectedTopic] = useState<any>(null);
 
   const cleanVisionText = (text: string) => {
     // Remove markdown markers often ignored by LLM instructions
@@ -784,8 +934,8 @@ export default function App() {
     <div className="min-h-screen bg-venice-cream flex items-center justify-center p-0 md:p-8">
       <div className="w-full max-w-7xl bg-venice-cream text-venice-dark flex flex-col overflow-hidden border-[8px] md:border-[16px] border-venice-red shadow-2xl">
         <Header onOpenProgram={() => changeView('program')} />
-        <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-auto">
-          <section className="lg:col-span-7 flex flex-col">
+        <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
+          <section className="lg:col-span-7 flex flex-col overflow-y-auto">
             <VisionSection 
               onOpenProgram={() => changeView('program')} 
               loading={loading}
@@ -795,30 +945,46 @@ export default function App() {
               fileCount={fileCount}
               error={error}
               repoInfo={repoInfo}
+              onSelectTopic={(topic) => setSelectedTopic(topic)}
             />
           </section>
-          <section className="lg:col-span-5 border-t lg:border-t-0 border-venice-red/10 p-4 md:p-8 flex flex-col justify-center bg-white/20">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.5 }}
-            >
-              <ChatInterface githubContext={githubContext} feedbackList={feedbackList} loadingList={loadingList} />
-              <div className="mt-8 flex items-center justify-between px-4 opacity-50">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3 h-3 text-green-600" />
-                  <span className="text-[9px] font-bold uppercase tracking-widest">Protocollo TLS Criptato</span>
-                </div>
-                <button 
-                  onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
-                  className="text-[9px] font-bold uppercase tracking-[0.2em] hover:text-venice-red transition-all cursor-pointer underline underline-offset-4"
+          <section className="lg:col-span-5 border-t lg:border-t-0 border-venice-red/10 p-4 md:p-8 flex flex-col justify-center bg-white/20 overflow-y-auto">
+            <AnimatePresence mode="wait">
+              {selectedTopic ? (
+                <TopicSummary 
+                  key="summary"
+                  topic={selectedTopic} 
+                  githubContext={githubContext} 
+                  onClose={() => setSelectedTopic(null)} 
+                />
+              ) : (
+                <motion.div
+                  key="chat"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  Lascia un'istanza formale
-                </button>
-              </div>
-            </motion.div>
+                  <ChatInterface githubContext={githubContext} feedbackList={feedbackList} loadingList={loadingList} />
+                  <div className="mt-8 flex items-center justify-between px-4 opacity-50">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3 h-3 text-green-600" />
+                      <span className="text-[9px] font-bold uppercase tracking-widest">Protocollo TLS Criptato</span>
+                    </div>
+                    <button 
+                      onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
+                      className="text-[9px] font-bold uppercase tracking-[0.2em] hover:text-venice-red transition-all cursor-pointer underline underline-offset-4"
+                    >
+                      Lascia un'istanza formale
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </section>
         </main>
+        
+        <LiveLedger feedbackList={feedbackList} loading={loadingList} />
         
         {/* Public Feedback & Transparency Section */}
         <section id="istanze" className="border-t border-venice-red/20 bg-white flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-venice-red/10">
