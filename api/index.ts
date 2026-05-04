@@ -193,13 +193,26 @@ app.post("/api/feedback", async (req, res) => {
   const { message, category, author, _honeypot } = req.body;
   if (_honeypot || !process.env.GITHUB_TOKEN) return res.status(200).json({ success: true });
   try {
-    const { res: getFileRes, repo, branch } = await fetchWithRetry(`contents/feedback_cittadini.md?ref={branch}`);
+    let getFileRes;
+    let repo = GITHUB_REPO;
+    let branch = "main";
+    
+    try {
+      const result = await fetchWithRetry(`contents/feedback_cittadini.md?ref={branch}`);
+      getFileRes = result.res;
+      repo = result.repo;
+      branch = result.branch;
+    } catch (e) {
+      // File probably doesn't exist, which is fine for the first entry
+      console.log("Feedback file not found, will create new one.");
+    }
+
     let sha = "";
     let currentContent = "";
-    if (getFileRes.ok) {
+    if (getFileRes && getFileRes.ok) {
       const fileData = await getFileRes.json();
       sha = fileData.sha;
-      currentContent = Buffer.from(fileData.content.replace(/\s/g, ''), 'base64').toString('utf-8');
+      currentContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
     }
     const newEntry = `\n\n### Feedback di ${author || 'Anonimo'} - ${new Date().toISOString()}\n**Categoria:** ${category}\n\n${message}\n\n---\n`;
     const encodedContent = Buffer.from(currentContent + newEntry).toString('base64');

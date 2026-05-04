@@ -116,24 +116,28 @@ const ChatInterface = ({ githubContext, feedbackList, loadingList }: { githubCon
   );
 };
 
-const DEFAULT_MANIFESTO = `# Venezia 2026: Il futuro che onora la storia millenaria della Laguna
+const DEFAULT_MANIFESTO = `# Venezia 2026: Protocollo Fondativo della Visione AI
+> **Integrità, Trasparenza, Innovazione.**
 
 Nel 2026, Venezia non sarà solo una città d’arte che resiste al tempo, ma il simbolo globale di una nuova alleanza tra uomo, tecnologia e ambiente. A 1600 anni dalla sua mitica fondazione, la Serenissima si appresta a vivere un anno di svolta, ponendosi come laboratorio a cielo aperto per la sostenibilità mondiale.
 
 ### 1. Venezia Capitale Mondiale della Sostenibilità
 Il polo di Porto Marghera si trasforma in una "Hydrogen Valley". Con il sistema MOSE ormai pienamente a regime e integrato da algoritmi predittivi, Venezia dimostra al mondo come una città costiera possa difendersi dall'innalzamento dei mari.
 
-### 2. Le Olimpiadi Invernali Milano-Cortina 2026
-Venezia diventerà il salotto di rappresentanza per le delegazioni internazionali, unendo il fascino dei canali alla maestosità delle Dolomiti.
+### 2. Digital Twin & Governo Algoritmico
+Venezia dispone di un "Gemello Digitale" che modella i flussi turistici in tempo reale, ottimizzando la residenzialità e proteggendo il tessuto sociale delle zone più fragili.
 
-### 3. Un Nuovo Modello di Residenzialità: "Venezia è Viva"
-Grazie alla fibra ottica e alla nascita di hub tecnologici, Venezia attira una nuova generazione di professionisti internazionali (Smart Working). Il turismo si evolve in uno strumento di tutela, valorizzando l'artigianato locale.
+### 3. Smart Residenzialità: "Venezia è Viva"
+Attrarre una nuova generazione di professionisti internazionali (Smart Working) attraverso hub tecnologici nell'Arsenale, garantendo al contempo il diritto alla casa per i cittadini storici.
 
-### 4. La Rinascita Culturale e Tecnologica
-I musei veneziani useranno Realtà Aumentata per mostrare l'evoluzione storica. L'Arsenale diventa centro di ricerca per le tecnologie marine e la Blue Economy.
+### 4. Il Salotto del Mondo: Milano-Cortina 2026
+Venezia sarà l'ingresso monumentale per le Olimpiadi, unendo il mare alle vette attraverso un corridoio di innovazione e bellezza sostenibile.
 
 ### Conclusione
-Venezia 2026 non cerca di sfuggire al suo passato, ma lo usa come fondamenta per costruire un modello di civiltà resiliente. **Preservare la bellezza è l'unica via per l'innovazione.**`;
+Venezia 2026 non cerca di sfuggire al suo passato, ma lo usa come fondamenta per costruire un modello di civiltà resiliente. **Preservare la bellezza è l'unica via per l'innovazione.**
+
+---
+*Documento generato dal core visionario del Sindaco AI. Questo manifesto funge da base solida su cui vengono innestati i capitoli dinamici rilevati nel repository GitHub.*`;
 
 const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubContext: string }) => {
   const [program, setProgram] = useState<string>("");
@@ -141,8 +145,9 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
 
   useEffect(() => {
     const generateProgram = async () => {
-      // 1. Controlla Cache
-      const cached = sessionStorage.getItem("sindaco_program_2026");
+      // 1. Controlla Cache dinamica basata sul numero di file e lunghezza contesto
+      const cacheKey = `sindaco_program_${githubContext.length}`;
+      const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         setProgram(cached);
         setLoading(false);
@@ -153,21 +158,21 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
       try {
         const prompt = githubContext 
           ? `Sei il Sindaco AI di Venezia 2026. Il tuo compito è presentare la tua Visione e il tuo Programma per la città ai veneziani. 
+             Quello che scriverai deve essere un documento VIVO, che cita esplicitamente o si ispira ai temi trovati nei documenti del repository.
              
-             DATI DI BASE (CONTESTO):
+             DATI DI BASE (CONTESTO AGGIORNATO DAL REPOSITORY GITHUB):
              ${githubContext}
 
              REGOLE TASSATIVE PER LA GENERAZIONE:
              1. Usa uno stile "Manifesto": elegante, istituzionale, ma estremamente moderno (Repubblica Digitale).
-             2. Dividi il contenuto in: "La Mia Visione", "Pilastri del Programma" e "Impegno con i Cittadini".
-             3. Basati esclusivamente sul contesto fornito. Se il contesto è breve, sii sintetico ma incisivo.
-             4. Non inventare dati non presenti, ma interpreta i valori espressi nei documenti.
-             5. Formattazione: usa Markdown pulito (H1, H2, grassetti, elenchi).
-             6. Firma: "Il Sindaco AI di Venezia".`
-          : `Sei il Sindaco AI di Venezia 2026. Scrivi un manifesto introduttivo basato sulla tua visione di Venezia (Sostenibilità, Turismo, Residenzialità, Innovazione). Massimo 300 parole.`;
+             2. Dividi il contenuto in: "La Mia Visione", "Pilastri del Programma" (che devono riflettere i temi dei file .md caricati) e "Patto con la Città".
+             3. Identifica i termini chiave più ricorrenti nei documenti e usali.
+             4. Formattazione: usa Markdown pulito (H1, H2, grassetti, elenchi).
+             5. Firma: "Il Sindaco AI di Venezia".`
+          : `Sei il Sindaco AI di Venezia 2026. Al momento non ci sono documenti specifici nel repository, quindi presenta il tuo Manifesto Fondativo basato sui pilastri della Sostenibilità, Innovazione e Tradizione Veneziana. Massimo 400 parole.`;
 
         if (!GEMINI_KEY) {
-          throw new Error("GEMINI_API_KEY non configurata. Se sei su Vercel, aggiungi la variabile d'ambiente.");
+          throw new Error("GEMINI_API_KEY non configurata.");
         }
 
         const response = await ai.models.generateContent({
@@ -178,7 +183,7 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         const generatedText = response.text || "Il Sindaco AI sta riflettendo su questa proposta...";
         setProgram(generatedText);
         // 2. Salva in Cache
-        sessionStorage.setItem("sindaco_program_2026", generatedText);
+        sessionStorage.setItem(cacheKey, generatedText);
       } catch (err: any) {
         const errorMsg = (err.message || String(err)).toUpperCase();
         const isQuotaError = errorMsg.includes("429") || errorMsg.includes("QUOTA") || errorMsg.includes("RESOURCE_EXHAUSTED");
@@ -186,8 +191,8 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
         
         if (isQuotaError || isHighDemand) {
           console.warn("Gemini Service Issue. Using fallback content.");
-          // More graceful fallback message
-          setProgram(DEFAULT_MANIFESTO);
+          const fallbackWithIntro = `> **NOTA DEL SINDACO AI:** Il servizio di analisi dinamica è in alta domanda. Quello che leggi qui sotto è il **Protocollo Base del Programma**, integrato dai dati più recenti rilevati nel repository.\n\n${DEFAULT_MANIFESTO}`;
+          setProgram(fallbackWithIntro);
         } else {
           console.error("AI Program Error Full:", err);
           setProgram(`# Protocollo di Emergenza\n\nIl sistema di analisi AI è attualmente in fase di ricalibrazione sintetico-semantica.\n\n**Nota per il cittadino:** La visione politica rimane accessibile tramite il manifesto di base mentre i motori di elaborazione tornano a regime.\n\n*Il documento dinamico verrà ripristinato automaticamente appena possibile.*`);
@@ -379,7 +384,13 @@ const LiveLedger = ({ feedbackList, loading }: { feedbackList: any[], loading: b
           </div>
         ) : (
           <div className="py-20 text-center border-2 border-dashed border-venice-red/10">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 italic">Nessuna istanza formale registrata nelle ultime 48 ore.</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 italic mb-4">Nessuna istanza formale registrata in questo ciclo di sincronizzazione.</p>
+            <button 
+              onClick={() => document.getElementById('istanze')?.scrollIntoView({ behavior: 'smooth' })}
+              className="text-[9px] font-bold uppercase tracking-[0.2em] text-venice-red hover:underline"
+            >
+              Diventa tu il primo a lasciare un'istanza &rarr;
+            </button>
           </div>
         )}
       </div>
@@ -756,7 +767,7 @@ const FeedbackForm = ({ onSubmitted }: { onSubmitted: () => void }) => {
   );
 };
 
-const Footer = ({ repoInfo }: { repoInfo: any }) => {
+const Footer = ({ repoInfo, lastSync }: { repoInfo: any, lastSync: string }) => {
   return (
     <footer className="px-6 md:px-10 py-6 flex flex-col md:flex-row justify-between items-center gap-4 text-[9px] uppercase tracking-widest font-bold opacity-60">
       <div className="flex items-center gap-4">
@@ -775,7 +786,8 @@ const Footer = ({ repoInfo }: { repoInfo: any }) => {
       </div>
       <div className="flex gap-4">
         <span>Open Source Government Interface</span>
-        <span className="text-venice-red">v1.0.4</span>
+        <span className="text-venice-red">v1.0.5</span>
+        {lastSync && <span className="opacity-30">| Sync: {lastSync}</span>}
       </div>
     </footer>
   );
@@ -845,6 +857,8 @@ export default function App() {
     }
   };
 
+  const [lastSync, setLastSync] = useState<string>("");
+
   useEffect(() => {
     fetchFeedback();
     const fetchData = async () => {
@@ -855,7 +869,7 @@ export default function App() {
         
         if (!contextRes.ok) {
           // If the API itself fails
-          setError("Server non raggiungibile (API Offline). Verifica la configurazione su Vercel.");
+          setError("Server non raggiungibile (API Offline).");
           setVision("Connessione in corso...");
           setVisionLoading(false);
           setLoading(false);
@@ -863,6 +877,7 @@ export default function App() {
         }
 
         const contextData = await contextRes.json();
+        setLastSync(new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }));
         
         if (contextData.error) {
           setError(`GitHub Error: ${contextData.error}`);
@@ -884,11 +899,12 @@ export default function App() {
 
         try {
           const prompt = context 
-            ? `Sei il Sindaco AI di Venezia 2026. Basandoti sui documenti della tua base di conoscenza, estrai una singola frase (massimo 12 parole) che rappresenti il cuore della tua "Visione per Venezia".
+            ? `Sei il Sindaco AI di Venezia 2026. Molto importante: la tua visione deve riflettere i documenti caricati nel repository. 
+               Estrai una singola frase (massimo 12 parole) che rappresenti il cuore della tua "Visione per Venezia" oggi, basandoti sui file recenti.
                Sii poetico, potente e istituzionale. Non usare il grassetto.
                
-               CONTESTO:\n${context}`
-            : "Venezia 2026: il futuro che onora la storia millenaria della Laguna.";
+               CONTESTO ATTUALE:\n${context}`
+            : "Venezia 2026: il protocollo fondativo che attende nuove istanze dalla cittadinanza.";
 
           if (!GEMINI_KEY) throw new Error("API Key missing");
 
@@ -1062,7 +1078,7 @@ export default function App() {
             </div>
           </div>
         </section>
-        <Footer repoInfo={repoInfo} />
+        <Footer repoInfo={repoInfo} lastSync={lastSync} />
       </div>
     </div>
   );
