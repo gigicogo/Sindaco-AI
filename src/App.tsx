@@ -139,15 +139,15 @@ Venezia 2026 non cerca di sfuggire al suo passato, ma lo usa come fondamenta per
 ---
 *Documento generato dal core visionario del Sindaco AI. Questo manifesto funge da base solida su cui vengono innestati i capitoli dinamici rilevati nel repository GitHub.*`;
 
-const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubContext: string }) => {
+const ProgramPage = ({ onBack, githubContext, setError }: { onBack: () => void, githubContext: string, setError: (err: string | null) => void }) => {
   const [program, setProgram] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const generateProgram = async () => {
-      // 1. Controlla Cache dinamica basata sul numero di file e lunghezza contesto
-      const cacheKey = `sindaco_program_${githubContext.length}`;
-      const cached = sessionStorage.getItem(cacheKey);
+      // 1. Controlla Cache dinamica basata sulla lunghezza contesto (più persistente)
+      const cacheKey = `sindaco_program_v2_${githubContext.length}`;
+      const cached = localStorage.getItem(cacheKey);
       if (cached) {
         setProgram(cached);
         setLoading(false);
@@ -182,20 +182,21 @@ const ProgramPage = ({ onBack, githubContext }: { onBack: () => void, githubCont
 
         const generatedText = response.text || "Il Sindaco AI sta riflettendo su questa proposta...";
         setProgram(generatedText);
-        // 2. Salva in Cache
-        sessionStorage.setItem(cacheKey, generatedText);
+        // 2. Salva in Cache locale
+        localStorage.setItem(cacheKey, generatedText);
       } catch (err: any) {
         const errorMsg = (err.message || String(err)).toUpperCase();
         const isQuotaError = errorMsg.includes("429") || errorMsg.includes("QUOTA") || errorMsg.includes("RESOURCE_EXHAUSTED");
-        const isHighDemand = errorMsg.includes("503") || errorMsg.includes("UNAVAILABLE") || errorMsg.includes("HIGH DEMAND");
+        const isHighDemand = errorMsg.includes("OVERLOADED") || errorMsg.includes("HIGHTRAFFIC") || errorMsg.includes("503") || errorMsg.includes("UNAVAILABLE") || errorMsg.includes("HIGH DEMAND");
         
         if (isQuotaError || isHighDemand) {
           console.warn("Gemini Service Issue. Using fallback content.");
-          const fallbackWithIntro = `> **NOTA DEL SINDACO AI:** Il servizio di analisi dinamica è in alta domanda. Quello che leggi qui sotto è il **Protocollo Base del Programma**, integrato dai dati più recenti rilevati nel repository.\n\n${DEFAULT_MANIFESTO}`;
+          const fallbackWithIntro = `> **NOTA ISTITUZIONALE:** L'affluenza di cittadini è altissima. Il Sindaco AI sta elaborando migliaia di richieste. Quello che leggi qui sotto è il **Manifesto Fondativo**, sincronizzato con i capitoli più recenti del repository.\n\n${DEFAULT_MANIFESTO}`;
           setProgram(fallbackWithIntro);
+          setError("ALTA AFFLUENZA: Modalità Consultazione Rapida Attiva.");
         } else {
           console.error("AI Program Error Full:", err);
-          setProgram(`# Protocollo di Emergenza\n\nIl sistema di analisi AI è attualmente in fase di ricalibrazione sintetico-semantica.\n\n**Nota per il cittadino:** La visione politica rimane accessibile tramite il manifesto di base mentre i motori di elaborazione tornano a regime.\n\n*Il documento dinamico verrà ripristinato automaticamente appena possibile.*`);
+          setProgram(`# Protocollo di Emergenza\n\nIl sistema di analisi AI è attualmente in fase di ricalibrazione sintetico-semantica.\n\n**Nota per il cittadino:** La visione politica rimane accessibile tramite il manifesto di base.\n\n*Il documento dinamico verrà ripristinato automaticamente appena possibile.*`);
         }
       } finally {
         setLoading(false);
@@ -923,7 +924,7 @@ export default function App() {
           if (isQuota) {
             console.warn("Gemini Quota Exceeded in Vision. Using fallback vision.");
             setVision("Venezia 2026: L'armonia tra storia millenaria e futuro tecnologico.");
-            setError("Sistema in modalità Risparmio Risorse (AI Overload).");
+            setError("IL SINDACO È IMPEGNATO IN ALTRE CONSULTAZIONI (ALTA AFFLUENZA).");
           } else {
             console.error("Gemini Vision Error:", aiErr);
             setVision("Venezia 2026: Un ponte tra tradizione e innovazione.");
@@ -943,7 +944,7 @@ export default function App() {
   }, []);
 
   if (view === 'program') {
-    return <ProgramPage onBack={() => changeView('home')} githubContext={githubContext} />;
+    return <ProgramPage onBack={() => changeView('home')} githubContext={githubContext} setError={setError} />;
   }
 
   return (
