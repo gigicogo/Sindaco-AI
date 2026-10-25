@@ -1,17 +1,11 @@
-<div align="center">
-</div>
+Un esperimento bizzarro in occasione delle elezioni amministrative a Venezia
 
-## Run Locally
+App collegata: https://sindaco-ai.vercel.app
 
-**Prerequisites:**  Node.js
+Articolo di approfondimento: https://medium.com/webeconoscenza/sindaco-ai-c629aa8fc3fd
 
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
-
+<img width="1609" height="978" alt="1*OhjtE8jpeI2LTiO6U7ikOA" src="https://github.com/user-attachments/assets/ede52037-16ff-434a-a997-0184ad54aa89" />
 
 ## 📄 Licenza
 
